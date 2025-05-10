@@ -1,4 +1,5 @@
 
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -32,51 +33,61 @@ import RegisterPage from "./modules/auth/RegisterPage";
 import AdminLayout from "./common/layouts/AdminLayout";
 import DashboardPage from "./modules/dashboard/DashboardPage";
 
-const queryClient = new QueryClient();
+// Membuat instansi QueryClient di luar komponen untuk menghindari re-render
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60000, // 1 menit
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/home" element={<LandingPage />} />
-              
-              {/* Blog Routes */}
-              <Route path="/blog" element={<BlogPage />} />
-              <Route path="/blog/:slug" element={<BlogPostPage />} />
-              
-              {/* Templates Routes */}
-              <Route path="/templates" element={<TemplatesPage />} />
-              <Route path="/templates/:id" element={<TemplateDetailPage />} />
-              
-              {/* Tools Routes */}
-              <Route path="/tools" element={<ToolsPage />} />
-              
-              {/* Auth Routes */}
-              <Route path="/auth" element={<AuthLayout />}>
-                <Route path="login" element={<LoginPage />} />
-                <Route path="register" element={<RegisterPage />} />
-              </Route>
-              
-              {/* Dashboard Routes */}
-              <Route path="/dashboard" element={<AdminLayout />}>
-                <Route index element={<DashboardPage />} />
-                {/* Add other dashboard routes here */}
-              </Route>
-              
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+  <React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/home" element={<LandingPage />} />
+                
+                {/* Blog Routes */}
+                <Route path="/blog" element={<BlogPage />} />
+                <Route path="/blog/:slug" element={<BlogPostPage />} />
+                
+                {/* Templates Routes */}
+                <Route path="/templates" element={<TemplatesPage />} />
+                <Route path="/templates/:id" element={<TemplateDetailPage />} />
+                
+                {/* Tools Routes */}
+                <Route path="/tools" element={<ToolsPage />} />
+                
+                {/* Auth Routes */}
+                <Route path="/auth" element={<AuthLayout />}>
+                  <Route path="login" element={<LoginPage />} />
+                  <Route path="register" element={<RegisterPage />} />
+                </Route>
+                
+                {/* Dashboard Routes */}
+                <Route path="/dashboard" element={<AdminLayout />}>
+                  <Route index element={<DashboardPage />} />
+                  {/* Add other dashboard routes here */}
+                </Route>
+                
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </React.StrictMode>
 );
 
 export default App;
