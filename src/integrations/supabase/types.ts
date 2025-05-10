@@ -68,6 +68,47 @@ export type Database = {
         }
         Relationships: []
       }
+      cities: {
+        Row: {
+          country_id: number | null
+          id: number
+          name: string
+        }
+        Insert: {
+          country_id?: number | null
+          id?: never
+          name: string
+        }
+        Update: {
+          country_id?: number | null
+          id?: never
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cities_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      countries: {
+        Row: {
+          id: number
+          name: string
+        }
+        Insert: {
+          id?: never
+          name: string
+        }
+        Update: {
+          id?: never
+          name?: string
+        }
+        Relationships: []
+      }
       download_history: {
         Row: {
           download_time: string | null
@@ -191,6 +232,13 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_tags_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts_with_author"
             referencedColumns: ["id"]
           },
           {
@@ -420,10 +468,56 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      posts_with_author: {
+        Row: {
+          author_avatar: string | null
+          author_id: string | null
+          author_name: string | null
+          author_username: string | null
+          category_id: string | null
+          category_name: string | null
+          category_slug: string | null
+          content: string | null
+          created_at: string | null
+          excerpt: string | null
+          featured_image: string | null
+          id: string | null
+          published_at: string | null
+          slug: string | null
+          status: string | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      safe_create_policy: {
+        Args: {
+          policy_name: string
+          table_name: string
+          command: string
+          using_expression: string
+          with_check_expression?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

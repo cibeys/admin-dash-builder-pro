@@ -8,6 +8,11 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./common/context/AuthContext";
 import { ThemeProvider } from "./common/context/ThemeContext";
 
+// Layouts
+import MainLayout from "./common/layouts/MainLayout";
+import AdminLayout from "./common/layouts/AdminLayout";
+import AuthLayout from "./modules/auth/AuthLayout";
+
 // Pages
 import Index from "./pages/Index";
 import LandingPage from "./pages/LandingPage";
@@ -23,17 +28,17 @@ import TemplateDetailPage from "./pages/templates/TemplateDetailPage";
 
 // Tools
 import ToolsPage from "./pages/tools/ToolsPage";
+import AIChatPage from "./pages/tools/AIChatPage";
+import ImageOptimizerPage from "./pages/tools/ImageOptimizerPage";
 
 // Auth
-import AuthLayout from "./modules/auth/AuthLayout";
 import LoginPage from "./modules/auth/LoginPage";
 import RegisterPage from "./modules/auth/RegisterPage";
 
 // Dashboard
-import AdminLayout from "./common/layouts/AdminLayout";
 import DashboardPage from "./modules/dashboard/DashboardPage";
 
-// Membuat instansi QueryClient di luar komponen untuk menghindari re-render
+// Membuat instansi QueryClient dengan konfigurasi yang benar
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -53,20 +58,28 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
-                {/* Public Routes */}
+                {/* Root Redirect */}
                 <Route path="/" element={<Index />} />
-                <Route path="/home" element={<LandingPage />} />
                 
-                {/* Blog Routes */}
-                <Route path="/blog" element={<BlogPage />} />
-                <Route path="/blog/:slug" element={<BlogPostPage />} />
-                
-                {/* Templates Routes */}
-                <Route path="/templates" element={<TemplatesPage />} />
-                <Route path="/templates/:id" element={<TemplateDetailPage />} />
-                
-                {/* Tools Routes */}
-                <Route path="/tools" element={<ToolsPage />} />
+                {/* Main Layout Routes */}
+                <Route path="/" element={<MainLayout />}>
+                  <Route path="home" element={<LandingPage />} />
+                  
+                  {/* Blog Routes */}
+                  <Route path="blog" element={<BlogPage />} />
+                  <Route path="blog/:slug" element={<BlogPostPage />} />
+                  <Route path="blog/category/:categorySlug" element={<BlogPage />} />
+                  
+                  {/* Templates Routes */}
+                  <Route path="templates" element={<TemplatesPage />} />
+                  <Route path="templates/:id" element={<TemplateDetailPage />} />
+                  <Route path="templates/category/:category" element={<TemplatesPage />} />
+                  
+                  {/* Tools Routes */}
+                  <Route path="tools" element={<ToolsPage />} />
+                  <Route path="tools/ai-chat" element={<AIChatPage />} />
+                  <Route path="tools/image-optimizer" element={<ImageOptimizerPage />} />
+                </Route>
                 
                 {/* Auth Routes */}
                 <Route path="/auth" element={<AuthLayout />}>
