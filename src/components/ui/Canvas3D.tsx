@@ -18,8 +18,8 @@ const Box = ({ position, size = [1, 1, 1], color = "#00a3ff" }) => {
   });
   
   return (
-    <mesh ref={mesh} position={position}>
-      <boxGeometry args={size} />
+    <mesh ref={mesh} position={position as [number, number, number]}>
+      <boxGeometry args={size as [number, number, number]} />
       <meshStandardMaterial color={color} />
     </mesh>
   );
@@ -36,8 +36,8 @@ const Torus = ({ position, args = [1, 0.4, 16, 100], color = "#ff0066" }) => {
   });
   
   return (
-    <mesh ref={mesh} position={position}>
-      <torusGeometry args={args} />
+    <mesh ref={mesh} position={position as [number, number, number]}>
+      <torusGeometry args={args as [number, number, number, number, number]} />
       <meshStandardMaterial color={color} />
     </mesh>
   );
@@ -60,7 +60,7 @@ const FloatingText = ({ text, position, color = "#ffffff", size = 1 }) => {
   return (
     <Text
       ref={textRef}
-      position={position}
+      position={position as [number, number, number]}
       fontSize={size}
       color={color}
       anchorX="center"
@@ -90,11 +90,11 @@ const Sphere = ({ position, args = [1, 32, 32], color = "#6a0dad" }) => {
   return (
     <mesh 
       ref={mesh} 
-      position={position}
+      position={position as [number, number, number]}
       onPointerOver={() => setHover(true)}
       onPointerOut={() => setHover(false)}
     >
-      <sphereGeometry args={args} />
+      <sphereGeometry args={args as [number, number, number]} />
       <meshPhongMaterial color={color} />
     </mesh>
   );
@@ -110,7 +110,7 @@ const Lighting = ({ position = [10, 10, 10] }) => {
       <ambientLight intensity={0.5} />
       <directionalLight 
         ref={lightRef}
-        position={position} 
+        position={position as [number, number, number]} 
         intensity={1} 
         castShadow 
       />
