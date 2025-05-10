@@ -3,6 +3,8 @@ import React, { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars, Text, useHelper } from '@react-three/drei';
 import * as THREE from 'three';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 // Box Component
 const Box = ({ position, size = [1, 1, 1], color = "#00a3ff" }) => {
