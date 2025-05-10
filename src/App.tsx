@@ -8,8 +8,20 @@ import { AuthProvider } from "./common/context/AuthContext";
 import { ThemeProvider } from "./common/context/ThemeContext";
 
 // Pages
+import Index from "./pages/Index";
 import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
+
+// Blog
+import BlogPage from "./pages/blog/BlogPage";
+import BlogPostPage from "./pages/blog/BlogPostPage";
+
+// Templates
+import TemplatesPage from "./pages/templates/TemplatesPage";
+import TemplateDetailPage from "./pages/templates/TemplateDetailPage";
+
+// Tools
+import ToolsPage from "./pages/tools/ToolsPage";
 
 // Auth
 import AuthLayout from "./modules/auth/AuthLayout";
@@ -32,7 +44,19 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<Index />} />
+              <Route path="/home" element={<LandingPage />} />
+              
+              {/* Blog Routes */}
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/blog/:slug" element={<BlogPostPage />} />
+              
+              {/* Templates Routes */}
+              <Route path="/templates" element={<TemplatesPage />} />
+              <Route path="/templates/:id" element={<TemplateDetailPage />} />
+              
+              {/* Tools Routes */}
+              <Route path="/tools" element={<ToolsPage />} />
               
               {/* Auth Routes */}
               <Route path="/auth" element={<AuthLayout />}>

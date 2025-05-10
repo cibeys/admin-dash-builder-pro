@@ -1,174 +1,229 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
-const LandingPage: React.FC = () => {
+const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="w-full px-4 md:px-6 py-4 bg-background border-b border-border">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-foreground">TanoeLuis</h1>
-          </div>
-          
+    <div className="min-h-screen flex flex-col">
+      {/* Header Section */}
+      <header className="bg-background border-b border-border">
+        <div className="container mx-auto py-4 px-4 flex items-center justify-between">
+          <Link to="/" className="text-2xl font-bold text-primary">TanoeLuis</Link>
           <nav className="hidden md:flex items-center space-x-6">
-            <Link to="/" className="text-foreground hover:text-primary font-medium">Home</Link>
-            <Link to="/blog" className="text-muted-foreground hover:text-primary">Blog</Link>
-            <Link to="/templates" className="text-muted-foreground hover:text-primary">Templates</Link>
-            <Link to="/tools" className="text-muted-foreground hover:text-primary">Tools</Link>
+            <Link to="/blog" className="text-foreground hover:text-primary transition">Blog</Link>
+            <Link to="/templates" className="text-foreground hover:text-primary transition">Templates</Link>
+            <Link to="/tools" className="text-foreground hover:text-primary transition">Tools</Link>
+            <Link to="/about" className="text-foreground hover:text-primary transition">About</Link>
           </nav>
-          
           <div className="flex items-center space-x-4">
-            <Link 
-              to="/auth/login" 
-              className="text-foreground hover:text-primary font-medium hidden md:inline-block"
-            >
-              Sign In
+            <Link to="/auth/login">
+              <Button variant="outline">Login</Button>
             </Link>
-            <Link 
-              to="/auth/register" 
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
-            >
-              Get Started
+            <Link to="/auth/register">
+              <Button>Sign Up</Button>
             </Link>
           </div>
         </div>
       </header>
-      
+
       {/* Hero Section */}
-      <section className="pt-16 pb-24 px-4 md:px-6">
-        <div className="container mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 max-w-4xl mx-auto leading-tight">
-            Modern Admin Dashboard <span className="text-primary">Solution</span> for Your Business
-          </h1>
-          
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-            The all-in-one dashboard with powerful analytics, user management, content tools, and customizable templates.
-          </p>
-          
-          <div className="flex flex-col md:flex-row justify-center gap-4 mb-16">
-            <Link 
-              to="/auth/register" 
-              className="bg-primary text-primary-foreground px-6 py-3 rounded-md hover:bg-primary/90 transition-colors text-lg font-medium"
-            >
-              Get Started for Free
-            </Link>
-            <Link 
-              to="/dashboard" 
-              className="bg-secondary text-secondary-foreground px-6 py-3 rounded-md hover:bg-secondary/80 transition-colors text-lg font-medium"
-            >
-              View Demo
-            </Link>
+      <section className="bg-gradient-to-r from-primary/10 to-primary/5 py-20">
+        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center">
+          <div className="md:w-1/2 mb-10 md:mb-0">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">Platform Kreasi Pengembang Modern</h1>
+            <p className="text-lg mb-8 text-muted-foreground">
+              Dapatkan akses ke ratusan template, alat, dan sumber daya untuk mempercepat alur kerja pengembangan Anda.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link to="/templates">
+                <Button size="lg" className="w-full sm:w-auto">Jelajahi Template</Button>
+              </Link>
+              <Link to="/auth/register">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto">Bergabung Sekarang</Button>
+              </Link>
+            </div>
           </div>
-          
-          <div className="bg-card p-2 rounded-lg shadow-2xl max-w-5xl mx-auto border border-border">
+          <div className="md:w-1/2 flex justify-center">
             <img 
-              src="https://placehold.co/1200x700/e8e8e8/1a1a1a?text=Dashboard+Preview" 
-              alt="Admin Dashboard Preview" 
-              className="rounded-md w-full h-auto"
+              src="/placeholder.svg" 
+              alt="Hero" 
+              className="w-full max-w-md rounded-lg shadow-xl" 
             />
           </div>
         </div>
       </section>
-      
+
       {/* Features Section */}
-      <section className="py-20 px-4 md:px-6 bg-secondary/50">
-        <div className="container mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-16">Key Features</h2>
-          
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-12">Fitur Unggulan</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-card p-8 rounded-lg border border-border">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
+            <div className="border border-border rounded-lg p-6 bg-card">
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-3">Advanced Analytics</h3>
+              <h3 className="text-xl font-bold mb-2">Template Premium</h3>
               <p className="text-muted-foreground">
-                Comprehensive dashboards with real-time data visualization and actionable insights.
+                Akses ratusan template premium untuk website, aplikasi mobile, dan desain UI/UX.
               </p>
             </div>
             
-            <div className="bg-card p-8 rounded-lg border border-border">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+            <div className="border border-border rounded-lg p-6 bg-card">
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-3">User Management</h3>
+              <h3 className="text-xl font-bold mb-2">Alat Pengembang</h3>
               <p className="text-muted-foreground">
-                Complete control over users, roles, and permissions with secure authentication.
+                Optimasi gambar, generator kode, dan alat lain untuk meningkatkan produktivitas Anda.
               </p>
             </div>
             
-            <div className="bg-card p-8 rounded-lg border border-border">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <div className="border border-border rounded-lg p-6 bg-card">
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-3">Content Management</h3>
+              <h3 className="text-xl font-bold mb-2">Tutorial Praktis</h3>
               <p className="text-muted-foreground">
-                Effortlessly create, edit, and manage blog posts and templates with a rich editor.
+                Blog dengan tutorial praktis dan artikel mendalam tentang pengembangan web modern.
               </p>
             </div>
           </div>
         </div>
       </section>
-      
+
+      {/* Recent Blog Posts */}
+      <section className="py-20 bg-secondary/30">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-12">
+            <h2 className="text-3xl font-bold">Blog Terbaru</h2>
+            <Link to="/blog" className="text-primary hover:underline">
+              Lihat Semua
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="border border-border rounded-lg overflow-hidden bg-card">
+                <img 
+                  src="/placeholder.svg" 
+                  alt="Blog" 
+                  className="w-full h-48 object-cover" 
+                />
+                <div className="p-6">
+                  <span className="text-xs font-medium text-primary uppercase tracking-wider">
+                    Web Development
+                  </span>
+                  <h3 className="text-xl font-bold mt-2 mb-3">
+                    <Link to={`/blog/post-${item}`} className="hover:text-primary">
+                      Membangun Website Modern dengan React dan Tailwind CSS
+                    </Link>
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    Pelajari cara membangun website yang responsif dan modern menggunakan React dan Tailwind CSS.
+                  </p>
+                  <div className="flex items-center mt-4">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 mr-3"></div>
+                    <span className="text-sm">Admin User</span>
+                    <span className="mx-2 text-muted-foreground">•</span>
+                    <span className="text-sm text-muted-foreground">May 10, 2025</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Call to Action */}
+      <section className="py-16 bg-primary text-primary-foreground">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold mb-6">Siap Meningkatkan Produktivitas Anda?</h2>
+          <p className="text-lg mb-8 max-w-2xl mx-auto">
+            Bergabunglah dengan ribuan pengembang lain yang telah menggunakan platform kami untuk mempercepat alur kerja mereka.
+          </p>
+          <Link to="/auth/register">
+            <Button size="lg" variant="secondary">
+              Mulai Sekarang - Gratis
+            </Button>
+          </Link>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="bg-background border-t border-border py-12 px-4 md:px-6">
-        <div className="container mx-auto">
+      <footer className="bg-background border-t border-border py-12">
+        <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-lg font-semibold mb-4">TanoeLuis</h3>
-              <p className="text-muted-foreground">
-                Modern admin dashboard solution with powerful features for your business needs.
+              <h3 className="text-xl font-bold mb-4">TanoeLuis</h3>
+              <p className="text-muted-foreground mb-4">
+                Platform terbaik untuk pengembang dan desainer modern yang ingin mempercepat alur kerja mereka.
               </p>
             </div>
-            
             <div>
-              <h3 className="text-lg font-semibold mb-4">Product</h3>
+              <h4 className="font-semibold mb-4">Navigasi</h4>
               <ul className="space-y-2">
-                <li><Link to="/features" className="text-muted-foreground hover:text-primary">Features</Link></li>
-                <li><Link to="/pricing" className="text-muted-foreground hover:text-primary">Pricing</Link></li>
-                <li><Link to="/templates" className="text-muted-foreground hover:text-primary">Templates</Link></li>
-                <li><Link to="/blog" className="text-muted-foreground hover:text-primary">Blog</Link></li>
+                <li>
+                  <Link to="/" className="text-muted-foreground hover:text-foreground">Beranda</Link>
+                </li>
+                <li>
+                  <Link to="/blog" className="text-muted-foreground hover:text-foreground">Blog</Link>
+                </li>
+                <li>
+                  <Link to="/templates" className="text-muted-foreground hover:text-foreground">Templates</Link>
+                </li>
+                <li>
+                  <Link to="/tools" className="text-muted-foreground hover:text-foreground">Tools</Link>
+                </li>
               </ul>
             </div>
-            
             <div>
-              <h3 className="text-lg font-semibold mb-4">Support</h3>
+              <h4 className="font-semibold mb-4">Dukungan</h4>
               <ul className="space-y-2">
-                <li><Link to="/docs" className="text-muted-foreground hover:text-primary">Documentation</Link></li>
-                <li><Link to="/faq" className="text-muted-foreground hover:text-primary">FAQ</Link></li>
-                <li><Link to="/contact" className="text-muted-foreground hover:text-primary">Contact</Link></li>
+                <li>
+                  <Link to="/faq" className="text-muted-foreground hover:text-foreground">FAQ</Link>
+                </li>
+                <li>
+                  <Link to="/contact" className="text-muted-foreground hover:text-foreground">Kontak</Link>
+                </li>
+                <li>
+                  <Link to="/documentation" className="text-muted-foreground hover:text-foreground">Dokumentasi</Link>
+                </li>
               </ul>
             </div>
-            
             <div>
-              <h3 className="text-lg font-semibold mb-4">Company</h3>
+              <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2">
-                <li><Link to="/about" className="text-muted-foreground hover:text-primary">About Us</Link></li>
-                <li><Link to="/careers" className="text-muted-foreground hover:text-primary">Careers</Link></li>
-                <li><Link to="/privacy" className="text-muted-foreground hover:text-primary">Privacy Policy</Link></li>
-                <li><Link to="/terms" className="text-muted-foreground hover:text-primary">Terms of Service</Link></li>
+                <li>
+                  <Link to="/privacy" className="text-muted-foreground hover:text-foreground">Kebijakan Privasi</Link>
+                </li>
+                <li>
+                  <Link to="/terms" className="text-muted-foreground hover:text-foreground">Syarat dan Ketentuan</Link>
+                </li>
               </ul>
             </div>
           </div>
-          
-          <div className="border-t border-border mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-muted-foreground">
+          <div className="border-t border-border mt-8 pt-8 flex flex-col md:flex-row items-center justify-between">
+            <p className="text-sm text-muted-foreground">
               &copy; {new Date().getFullYear()} TanoeLuis. All rights reserved.
             </p>
-            
             <div className="flex space-x-4 mt-4 md:mt-0">
-              <a href="#" className="text-muted-foreground hover:text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+              <a href="#" className="text-muted-foreground hover:text-foreground">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-twitter"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path></svg>
+              <a href="#" className="text-muted-foreground hover:text-foreground">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-github"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+              <a href="#" className="text-muted-foreground hover:text-foreground">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-instagram"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+              <a href="#" className="text-muted-foreground hover:text-foreground">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-linkedin"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg>
               </a>
             </div>
           </div>
