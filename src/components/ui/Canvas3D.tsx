@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars, Text, useHelper } from '@react-three/drei';
@@ -102,6 +103,7 @@ const Sphere = ({ position, args = [1, 32, 32], color = "#6a0dad" }) => {
 // Light Component
 const Lighting = ({ position = [10, 10, 10] }) => {
   const lightRef = useRef<THREE.DirectionalLight>(null);
+  useHelper(lightRef, THREE.DirectionalLightHelper, 5);
   
   return (
     <>
@@ -185,6 +187,136 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({
   );
 };
 
+// Character untuk Hero Section
+export const Character3D: React.FC<{ className?: string }> = ({ className }) => {
+  return (
+    <div className={cn("h-[500px]", className)}>
+      <Canvas camera={{ position: [0, 2, 10], fov: 50 }}>
+        <ambientLight intensity={0.5} />
+        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
+        <Stars radius={100} depth={50} count={5000} factor={4} fade />
+        
+        {/* Karakter Robot 3D */}
+        <group position={[0, -2, 0]}>
+          {/* Kepala */}
+          <mesh position={[0, 4, 0]}>
+            <boxGeometry args={[1.5, 1.5, 1.5]} />
+            <meshStandardMaterial color="#8b5cf6" />
+            
+            {/* Mata */}
+            <mesh position={[0.4, 0.2, 0.76]}>
+              <sphereGeometry args={[0.2, 16, 16]} />
+              <meshStandardMaterial color="#00fff2" emissive="#00fff2" emissiveIntensity={0.5} />
+            </mesh>
+            <mesh position={[-0.4, 0.2, 0.76]}>
+              <sphereGeometry args={[0.2, 16, 16]} />
+              <meshStandardMaterial color="#00fff2" emissive="#00fff2" emissiveIntensity={0.5} />
+            </mesh>
+            
+            {/* Antena */}
+            <mesh position={[0.5, 0.9, 0]}>
+              <cylinderGeometry args={[0.05, 0.05, 0.5]} />
+              <meshStandardMaterial color="#f97316" />
+              <mesh position={[0, 0.3, 0]}>
+                <sphereGeometry args={[0.1, 16, 16]} />
+                <meshStandardMaterial color="#ff0066" emissive="#ff0066" emissiveIntensity={0.5} />
+              </mesh>
+            </mesh>
+            <mesh position={[-0.5, 0.9, 0]}>
+              <cylinderGeometry args={[0.05, 0.05, 0.5]} />
+              <meshStandardMaterial color="#f97316" />
+              <mesh position={[0, 0.3, 0]}>
+                <sphereGeometry args={[0.1, 16, 16]} />
+                <meshStandardMaterial color="#ff0066" emissive="#ff0066" emissiveIntensity={0.5} />
+              </mesh>
+            </mesh>
+          </mesh>
+          
+          {/* Badan */}
+          <mesh position={[0, 2.5, 0]}>
+            <boxGeometry args={[2.5, 2, 1]} />
+            <meshStandardMaterial color="#3b82f6" />
+            
+            {/* Panel di dada */}
+            <mesh position={[0, 0.4, 0.51]}>
+              <boxGeometry args={[1.5, 0.8, 0.1]} />
+              <meshStandardMaterial color="#334155" />
+              
+              {/* Lampu-lampu panel */}
+              <mesh position={[-0.4, 0.2, 0.06]}>
+                <sphereGeometry args={[0.1, 16, 16]} />
+                <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.5} />
+              </mesh>
+              <mesh position={[0, 0.2, 0.06]}>
+                <sphereGeometry args={[0.1, 16, 16]} />
+                <meshStandardMaterial color="#eab308" emissive="#eab308" emissiveIntensity={0.5} />
+              </mesh>
+              <mesh position={[0.4, 0.2, 0.06]}>
+                <sphereGeometry args={[0.1, 16, 16]} />
+                <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.5} />
+              </mesh>
+            </mesh>
+          </mesh>
+          
+          {/* Lengan kiri */}
+          <group position={[-1.6, 2.5, 0]}>
+            <mesh position={[0, 0.3, 0]}>
+              <cylinderGeometry args={[0.3, 0.35, 1.8]} />
+              <meshStandardMaterial color="#64748b" />
+            </mesh>
+            <mesh position={[0, -1, 0]}>
+              <sphereGeometry args={[0.4, 16, 16]} />
+              <meshStandardMaterial color="#475569" />
+            </mesh>
+          </group>
+          
+          {/* Lengan kanan */}
+          <group position={[1.6, 2.5, 0]}>
+            <mesh position={[0, 0.3, 0]}>
+              <cylinderGeometry args={[0.3, 0.35, 1.8]} />
+              <meshStandardMaterial color="#64748b" />
+            </mesh>
+            <mesh position={[0, -1, 0]}>
+              <sphereGeometry args={[0.4, 16, 16]} />
+              <meshStandardMaterial color="#475569" />
+            </mesh>
+          </group>
+          
+          {/* Kaki */}
+          <group position={[-0.6, 0.8, 0]}>
+            <mesh position={[0, 0, 0]}>
+              <cylinderGeometry args={[0.35, 0.4, 1.5]} />
+              <meshStandardMaterial color="#0f172a" />
+            </mesh>
+            <mesh position={[0, -0.9, 0.1]}>
+              <boxGeometry args={[0.8, 0.3, 1.2]} />
+              <meshStandardMaterial color="#1e293b" />
+            </mesh>
+          </group>
+          
+          <group position={[0.6, 0.8, 0]}>
+            <mesh position={[0, 0, 0]}>
+              <cylinderGeometry args={[0.35, 0.4, 1.5]} />
+              <meshStandardMaterial color="#0f172a" />
+            </mesh>
+            <mesh position={[0, -0.9, 0.1]}>
+              <boxGeometry args={[0.8, 0.3, 1.2]} />
+              <meshStandardMaterial color="#1e293b" />
+            </mesh>
+          </group>
+        </group>
+        
+        <OrbitControls 
+          enableZoom={false}
+          enablePan={false}
+          autoRotate
+          autoRotateSpeed={0.5}
+        />
+      </Canvas>
+    </div>
+  );
+};
+
 // Komponen Hero 3D
 interface Hero3DProps {
   title?: string;
@@ -199,7 +331,7 @@ export const Hero3D: React.FC<Hero3DProps> = ({
 }) => {
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      <Canvas3D height="500px" />
+      <Character3D />
       
       <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-background to-transparent">
         <div className="text-center px-4">

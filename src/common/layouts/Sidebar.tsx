@@ -69,73 +69,86 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, onToggle }) => {
   };
 
   return (
-    <aside 
-      className={cn(
-        "bg-sidebar border-r border-sidebar-border transition-all duration-300",
-        open ? "w-64" : "w-20"
+    <>
+      {/* Overlay for mobile when sidebar is open */}
+      {open && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={onToggle}
+        />
       )}
-    >
-      <div className="flex flex-col h-full">
-        {/* Logo & Toggle */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
-          <div className="flex items-center">
-            <span className="text-2xl font-bold text-sidebar-primary">
-              {open ? "TanoeLuis" : "TL"}
-            </span>
-          </div>
-          <button
-            onClick={onToggle}
-            className="p-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          >
-            {open ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-          </button>
-        </div>
-        
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map((item) => (
-            <NavItem
-              key={item.to}
-              icon={item.icon}
-              label={item.label}
-              to={item.to}
-              active={isActive(item.to)}
-              collapsed={!open}
-            />
-          ))}
-        </nav>
-        
-        {/* User Profile */}
-        <div className="p-4 border-t border-sidebar-border">
-          <div className={cn(
-            "flex items-center",
-            open ? "justify-between" : "justify-center"
-          )}>
+      
+      <aside 
+        className={cn(
+          "fixed top-0 left-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300",
+          open ? "w-64" : "w-0 md:w-20",
+          "md:translate-x-0 transform",
+          !open && "-translate-x-full md:translate-x-0",
+          "overflow-hidden"
+        )}
+      >
+        <div className="flex flex-col h-full">
+          {/* Logo & Toggle */}
+          <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
             <div className="flex items-center">
-              <div className="w-8 h-8 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center">
-                {user?.name?.[0] || 'U'}
+              <span className="text-2xl font-bold text-sidebar-primary">
+                {open ? "TanoeLuis" : "TL"}
+              </span>
+            </div>
+            <button
+              onClick={onToggle}
+              className="p-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              {open ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+            </button>
+          </div>
+          
+          {/* Navigation */}
+          <nav className="flex-1 px-3 py-4 space-y-1">
+            {navItems.map((item) => (
+              <NavItem
+                key={item.to}
+                icon={item.icon}
+                label={item.label}
+                to={item.to}
+                active={isActive(item.to)}
+                collapsed={!open}
+              />
+            ))}
+          </nav>
+          
+          {/* User Profile */}
+          <div className="p-4 border-t border-sidebar-border">
+            <div className={cn(
+              "flex items-center",
+              open ? "justify-between" : "justify-center"
+            )}>
+              <div className="flex items-center">
+                <div className="w-8 h-8 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center">
+                  {user?.name?.[0] || 'U'}
+                </div>
+                
+                {open && (
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-sidebar-foreground">{user?.name}</p>
+                    <p className="text-xs text-sidebar-foreground/70">{user?.role}</p>
+                  </div>
+                )}
               </div>
               
               {open && (
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-sidebar-foreground">{user?.name}</p>
-                  <p className="text-xs text-sidebar-foreground/70">{user?.role}</p>
-                </div>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  aria-label="Logout"
+                >
+                  <LogOut size={18} />
+                </button>
               )}
             </div>
-            
-            {open && (
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                aria-label="Logout"
-              >
-                <LogOut size={18} />
-              </button>
-            )}
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 };

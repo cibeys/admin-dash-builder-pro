@@ -7,6 +7,7 @@ import { Breadcrumb } from '../components/Breadcrumb';
 import { Toaster } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { MainHeader } from '../components/Header';
 
 const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -29,24 +30,31 @@ const MainLayout: React.FC = () => {
     }
   }, [sidebarOpen, mounted]);
 
+  // Close sidebar on mobile when route changes
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <MainSidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       
       {/* Main Content */}
-      <main 
-        className={cn(
-          "flex-1 transition-all duration-300 overflow-auto",
-          sidebarOpen ? "ml-64" : "ml-20"
-        )}
-      >
-        <ScrollArea className="h-screen w-full">
-          <div className="container max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <Breadcrumb className="mb-6" />
+      <div className={`flex flex-col flex-1 w-full transition-all duration-300 ${sidebarOpen ? "md:ml-64" : "md:ml-20"}`}>
+        {/* Header */}
+        <MainHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+        
+        <div className="container max-w-7xl mx-auto px-4 py-6">
+          {/* Breadcrumb */}
+          <Breadcrumb className="mb-6" />
 
+          {/* Main Content Area */}
+          <ScrollArea className="flex-1 w-full">
             <AnimatePresence mode="wait">
-              <motion.div
+              <motion.main
                 key={location.pathname}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -54,11 +62,13 @@ const MainLayout: React.FC = () => {
                 transition={{ duration: 0.3 }}
               >
                 <Outlet />
-              </motion.div>
+              </motion.main>
             </AnimatePresence>
-          </div>
-        </ScrollArea>
-      </main>
+          </ScrollArea>
+        </div>
+        
+        {/* Footer will be here */}
+      </div>
       
       <Toaster position="top-right" />
     </div>

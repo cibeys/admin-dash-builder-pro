@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -24,10 +25,8 @@ import {
   Search,
   Hash,
   Percent,
-  Github,
-  Mail
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -54,7 +53,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ icon, title, description, to, badge
             <h3 className="text-lg font-bold mb-2">{title}</h3>
             <p className="text-muted-foreground text-sm">{description}</p>
           </CardContent>
-          <div className="px-6 py-3 border-t flex justify-between items-center gap-2">
+          <CardFooter className="px-6 py-3 border-t flex justify-between items-center gap-2">
             <div className="flex gap-2 flex-wrap">
               {badges.map((badge, index) => (
                 <span 
@@ -66,7 +65,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ icon, title, description, to, badge
               ))}
             </div>
             <span className="text-xs text-primary group-hover:underline">Buka Tool</span>
-          </div>
+          </CardFooter>
         </Card>
       </Link>
     </motion.div>
@@ -82,7 +81,7 @@ const tools: ToolCardProps[] = [
     badges: ["Math", "Utility"]
   },
   {
-    icon: <Type size={24} />,
+    icon: <Clock size={24} />,
     title: "Typing Speed",
     description: "Ukur kecepatan mengetik dan tingkatkan kemampuan",
     to: "/tools/typing-speed",
@@ -96,7 +95,7 @@ const tools: ToolCardProps[] = [
     badges: ["Info", "API"]
   },
   {
-    icon: <VolumeX size={24} />,
+    icon: <VolumeX size={24} stroke="currentColor" fill="none" />,
     title: "Text to Speech",
     description: "Ubah teks menjadi suara dengan berbagai pilihan suara",
     to: "/tools/text-to-speech",
@@ -246,7 +245,7 @@ const ToolsPage: React.FC = () => {
         </p>
         <div className="flex justify-center gap-4">
           <Button>
-            <Github className="mr-2 h-4 w-4" />
+            <GitHub className="mr-2 h-4 w-4" />
             GitHub
           </Button>
           <Button variant="outline">
