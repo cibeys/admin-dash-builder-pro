@@ -1,352 +1,393 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/common/context/AuthContext';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import { Send, RefreshCw, User, Bot, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { SendIcon, RefreshCw } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { useToast } from '@/components/ui/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
-interface ChatMessage {
+// Define types for our chat objects
+type ChatConversation = {
   id: string;
+  user_id: string;
+  last_message: string | null;
+  created_at: string;
+  updated_at: string;
+  profiles?: {
+    username: string | null;
+    full_name: string | null;
+  };
+};
+
+type ChatMessage = {
+  id: string;
+  conversation_id: string;
   content: string;
   role: 'user' | 'admin';
   created_at: string;
-  user_id: string;
-  conversation_id: string;
-}
-
-interface Conversation {
-  id: string;
-  user_id: string;
-  last_message?: string;
-  updated_at: string;
-  user?: {
-    username?: string;
-    avatar_url?: string;
-  };
-}
+  user_id?: string | null;
+};
 
 const AdminChatPanel: React.FC = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversation, setActiveConversation] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [messageInput, setMessageInput] = useState('');
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // Fetch conversations
-  useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('ai_chat_conversations')
-          .select(`
-            id, 
-            user_id, 
-            last_message,
-            updated_at,
-            profiles:user_id (username, avatar_url)
-          `)
-          .order('updated_at', { ascending: false });
-          
-        if (error) throw error;
+
+  // Load conversations
+  const loadConversations = async () => {
+    try {
+      setLoadingConversations(true);
+      
+      // Get all conversations as admin
+      const { data, error } = await supabase
+        .from('ai_chat_conversations')
+        .select(`
+          id, 
+          user_id,
+          last_message,
+          updated_at,
+          profiles(username, full_name)
+        `)
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading conversations:', error);
+        toast.error('Failed to load conversations');
+        return;
+      }
+
+      if (data) {
+        setConversations(data as ChatConversation[]);
         
-        if (data) {
-          // Format the conversations data
-          const formattedData = data.map(conv => ({
-            id: conv.id,
-            user_id: conv.user_id,
-            last_message: conv.last_message,
-            updated_at: conv.updated_at,
-            user: conv.profiles
-          }));
-          
-          setConversations(formattedData);
-          
-          // Automatically select the first conversation if none is selected
-          if (formattedData.length > 0 && !activeConversation) {
-            setActiveConversation(formattedData[0].id);
-          }
+        // Auto-select the first conversation if none is selected
+        if (data.length > 0 && !selectedConversation) {
+          setSelectedConversation(data[0].id);
+          loadMessages(data[0].id);
         }
-      } catch (error) {
-        console.error('Error fetching conversations:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load conversations",
-          variant: "destructive"
-        });
       }
-    };
-    
-    fetchConversations();
-    
-    // Set up a subscription for new conversations
-    const conversationsSubscription = supabase
-      .channel('ai_chat_conversations_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public', 
-        table: 'ai_chat_conversations'
-      }, () => {
-        fetchConversations();
-      })
-      .subscribe();
+    } catch (err) {
+      console.error('Error loading conversations:', err);
+      toast.error('Failed to load conversations');
+    } finally {
+      setLoadingConversations(false);
+    }
+  };
+
+  // Load messages for a specific conversation
+  const loadMessages = async (conversationId: string) => {
+    try {
+      setLoadingMessages(true);
       
-    return () => {
-      supabase.removeChannel(conversationsSubscription);
-    };
-  }, [toast]);
-  
-  // Fetch messages for active conversation
-  useEffect(() => {
-    if (!activeConversation) return;
-    
-    const fetchMessages = async () => {
-      setLoading(true);
-      
-      try {
-        const { data, error } = await supabase
-          .from('ai_chat_history')
-          .select('*')
-          .eq('conversation_id', activeConversation)
-          .order('created_at', { ascending: true });
-          
-        if (error) throw error;
-        if (data) setMessages(data as ChatMessage[]);
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load chat messages",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
+      const { data, error } = await supabase
+        .from('ai_chat_history')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading messages:', error);
+        toast.error('Failed to load messages');
+        return;
       }
-    };
-    
-    fetchMessages();
-    
-    // Set up a subscription for messages in this conversation
-    const messagesSubscription = supabase
-      .channel(`ai_chat_history_${activeConversation}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'ai_chat_history',
-        filter: `conversation_id=eq.${activeConversation}`
-      }, (payload) => {
-        setMessages(prev => [...prev, payload.new as ChatMessage]);
-      })
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(messagesSubscription);
-    };
-  }, [activeConversation, toast]);
-  
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-  
+
+      if (data) {
+        setMessages(data as ChatMessage[]);
+      }
+    } catch (err) {
+      console.error('Error loading messages:', err);
+      toast.error('Failed to load messages');
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  // Send a message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newMessage.trim() || !activeConversation || !user) return;
+    if (!messageInput.trim() || !selectedConversation || !user) return;
+    
+    const newMessage = {
+      conversation_id: selectedConversation,
+      content: messageInput.trim(),
+      role: 'admin' as const,
+      user_id: user.id
+    };
     
     try {
-      const messageData = {
-        content: newMessage,
-        conversation_id: activeConversation,
-        user_id: user.id,
-        role: 'admin'
-      };
-      
-      // Add to database
-      const { error } = await supabase
+      // Add the message to the database
+      const { data: messageData, error: messageError } = await supabase
         .from('ai_chat_history')
-        .insert(messageData);
-        
-      if (error) throw error;
+        .insert(newMessage)
+        .select()
+        .single();
+
+      if (messageError) {
+        console.error('Error sending message:', messageError);
+        toast.error('Failed to send message');
+        return;
+      }
       
-      // Update last_message in the conversation
-      await supabase
+      // Update the conversation's last message and timestamp
+      const { error: conversationError } = await supabase
         .from('ai_chat_conversations')
         .update({ 
-          last_message: newMessage,
+          last_message: messageInput.trim(),
           updated_at: new Date().toISOString()
         })
-        .eq('id', activeConversation);
+        .eq('id', selectedConversation);
+
+      if (conversationError) {
+        console.error('Error updating conversation:', conversationError);
+        toast.error('Failed to update conversation');
+      }
+
+      // Add the new message to the messages array
+      if (messageData) {
+        setMessages(prev => [...prev, messageData as ChatMessage]);
+      }
       
-      // Clear input
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive"
-      });
+      // Clear the input
+      setMessageInput('');
+      
+      // Scroll to bottom
+      scrollToBottom();
+      
+      // Refresh the conversation list to update the order
+      loadConversations();
+      
+    } catch (err) {
+      console.error('Error in chat interaction:', err);
+      toast.error('Failed to process chat interaction');
     }
   };
   
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: 'short',
-    }).format(date);
+  // Scroll to bottom of messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
   
-  const getConversationUserName = (conversation: Conversation) => {
-    return conversation.user?.username || `User ${conversation.user_id.slice(0, 5)}...`;
+  // Setup subscription for real-time updates
+  useEffect(() => {
+    const setupSubscription = async () => {
+      // Subscribe to new messages
+      const messagesChannel = supabase
+        .channel('admin-chat-messages')
+        .on('postgres_changes', 
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'ai_chat_history'
+          }, 
+          (payload) => {
+            const newMessage = payload.new as ChatMessage;
+            if (newMessage.conversation_id === selectedConversation) {
+              setMessages(prev => [...prev, newMessage]);
+              scrollToBottom();
+            }
+          }
+        )
+        .subscribe();
+        
+      // Subscribe to conversation updates
+      const conversationsChannel = supabase
+        .channel('admin-chat-conversations')
+        .on('postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'ai_chat_conversations'
+          },
+          () => {
+            loadConversations();
+          }
+        )
+        .subscribe();
+        
+      return () => {
+        supabase.removeChannel(messagesChannel);
+        supabase.removeChannel(conversationsChannel);
+      };
+    };
+    
+    setupSubscription();
+  }, [selectedConversation]);
+
+  // Initial load
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+    }
+  }, [user]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Filter conversations based on search query
+  const filteredConversations = conversations.filter(conversation => {
+    const username = conversation.profiles?.username || '';
+    const fullName = conversation.profiles?.full_name || '';
+    const lastMessage = conversation.last_message || '';
+    
+    return (
+      username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+
+  // Function to refresh conversations
+  const handleRefresh = () => {
+    loadConversations();
+    if (selectedConversation) {
+      loadMessages(selectedConversation);
+    }
+    toast.success('Refreshed conversations');
   };
-  
+
+  // Function to handle conversation selection
+  const handleSelectConversation = (conversationId: string) => {
+    setSelectedConversation(conversationId);
+    loadMessages(conversationId);
+  };
+
   return (
-    <Card className="h-[calc(100vh-200px)] flex flex-col">
-      <CardHeader className="p-4 border-b">
-        <CardTitle className="text-lg">Admin Chat</CardTitle>
-      </CardHeader>
+    <div className="flex flex-col h-[calc(100vh-12rem)]">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Admin Chat</h2>
+        <Button variant="outline" size="sm" onClick={handleRefresh}>
+          <RefreshCw size={16} className="mr-2" />
+          Refresh
+        </Button>
+      </div>
       
-      <div className="flex flex-1 overflow-hidden">
-        {/* Conversations Sidebar */}
-        <div className="w-1/3 border-r">
-          <div className="flex justify-between items-center p-3 border-b">
-            <h3 className="font-medium">Conversations</h3>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => {
-                // Refresh conversations list
-                const fetchConversations = async () => {
-                  try {
-                    const { data, error } = await supabase
-                      .from('ai_chat_conversations')
-                      .select(`
-                        id, 
-                        user_id, 
-                        last_message,
-                        updated_at,
-                        profiles:user_id (username, avatar_url)
-                      `)
-                      .order('updated_at', { ascending: false });
-                      
-                    if (error) throw error;
-                    
-                    if (data) {
-                      setConversations(data.map(conv => ({
-                        id: conv.id,
-                        user_id: conv.user_id,
-                        last_message: conv.last_message,
-                        updated_at: conv.updated_at,
-                        user: conv.profiles
-                      })));
-                    }
-                  } catch (error) {
-                    console.error('Error refreshing conversations:', error);
-                    toast({
-                      title: "Error",
-                      description: "Failed to refresh conversations",
-                      variant: "destructive"
-                    });
-                  }
-                };
-                
-                fetchConversations();
-              }}
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
+        {/* Conversations list */}
+        <Card className="p-4 h-full">
+          <div className="flex items-center gap-2 mb-4">
+            <Search className="w-4 h-4 opacity-50" />
+            <Input
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9"
+            />
           </div>
           
-          <ScrollArea className="h-[calc(100vh-280px)]">
-            {conversations.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">
-                No conversations yet
-              </div>
-            ) : (
-              <div className="divide-y">
-                {conversations.map(conversation => (
-                  <div
-                    key={conversation.id}
-                    className={`p-3 hover:bg-muted/50 cursor-pointer ${
-                      activeConversation === conversation.id ? 'bg-muted' : ''
-                    }`}
-                    onClick={() => setActiveConversation(conversation.id)}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <Avatar>
-                        {conversation.user?.avatar_url ? (
-                          <AvatarImage src={conversation.user.avatar_url} />
-                        ) : (
-                          <AvatarFallback>
-                            {getConversationUserName(conversation).charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">
-                          {getConversationUserName(conversation)}
-                        </p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {conversation.last_message || 'No messages'}
-                        </p>
-                      </div>
-                      <div className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDate(conversation.updated_at)}
-                      </div>
+          <ScrollArea className="h-[calc(100%-3rem)]">
+            {loadingConversations ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center space-x-4 p-3">
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-[200px]" />
+                      <Skeleton className="h-4 w-[160px]" />
                     </div>
                   </div>
                 ))}
               </div>
+            ) : filteredConversations.length > 0 ? (
+              <div className="space-y-1">
+                {filteredConversations.map((conversation) => (
+                  <div
+                    key={conversation.id}
+                    className={`flex items-start space-x-3 p-3 rounded-md cursor-pointer ${
+                      selectedConversation === conversation.id
+                        ? 'bg-secondary'
+                        : 'hover:bg-secondary/50'
+                    }`}
+                    onClick={() => handleSelectConversation(conversation.id)}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                      <User size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline">
+                        <p className="font-medium truncate">
+                          {conversation.profiles?.full_name || conversation.profiles?.username || 'Anonymous User'}
+                        </p>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-1">
+                        {conversation.last_message || 'No messages yet'}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                <MessageSquareText className="h-12 w-12 text-muted-foreground mb-2" />
+                <h3 className="font-medium text-lg">No conversations</h3>
+                <p className="text-muted-foreground text-sm">
+                  {searchQuery ? 'No conversations match your search' : 'Wait for users to start chatting'}
+                </p>
+              </div>
             )}
           </ScrollArea>
-        </div>
+        </Card>
         
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {activeConversation ? (
+        {/* Chat area */}
+        <Card className="p-4 lg:col-span-2 flex flex-col h-full">
+          {selectedConversation ? (
             <>
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4">
-                {loading ? (
-                  <div className="flex justify-center items-center h-full">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <ScrollArea className="flex-1 pr-4">
+                {loadingMessages ? (
+                  <div className="space-y-4 py-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex flex-col space-y-2">
+                        <Skeleton className="h-10 w-full max-w-md" />
+                        <Skeleton className="h-20 w-full max-w-md self-end" />
+                      </div>
+                    ))}
                   </div>
-                ) : messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                    <p>No messages in this conversation yet.</p>
-                    <p className="text-sm mt-1">Send a message to start chatting!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
+                ) : messages.length > 0 ? (
+                  <div className="space-y-4 py-4">
                     {messages.map((message) => (
-                      <div 
+                      <div
                         key={message.id}
-                        className={`flex ${message.role === 'admin' ? 'justify-end' : 'justify-start'}`}
+                        className={`flex ${
+                          message.role === 'admin' ? 'justify-end' : 'justify-start'
+                        }`}
                       >
-                        <div 
-                          className={`max-w-[70%] rounded-lg p-3 ${
-                            message.role === 'admin' 
-                              ? 'bg-primary text-primary-foreground' 
+                        <div
+                          className={`px-4 py-2 rounded-lg max-w-[80%] ${
+                            message.role === 'admin'
+                              ? 'bg-primary text-primary-foreground'
                               : 'bg-muted'
                           }`}
                         >
-                          <div className="text-sm mb-1">
-                            <Badge variant={message.role === 'admin' ? "outline" : "secondary"} className="text-xs">
-                              {message.role === 'admin' ? 'Admin' : 'User'}
-                            </Badge>
-                            <span className="text-xs ml-2 opacity-70">{formatDate(message.created_at)}</span>
+                          <div className="flex items-center gap-2 mb-1 text-xs opacity-70">
+                            {message.role === 'admin' ? (
+                              <>
+                                <span>Admin</span>
+                                <Bot size={12} />
+                              </>
+                            ) : (
+                              <>
+                                <User size={12} />
+                                <span>User</span>
+                              </>
+                            )}
+                            <span>•</span>
+                            <span>{formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}</span>
                           </div>
                           <p className="whitespace-pre-wrap">{message.content}</p>
                         </div>
@@ -354,34 +395,43 @@ const AdminChatPanel: React.FC = () => {
                     ))}
                     <div ref={messagesEndRef} />
                   </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                    <MessageSquareText className="h-12 w-12 text-muted-foreground mb-2" />
+                    <h3 className="font-medium text-lg">No messages yet</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Send a message to start the conversation
+                    </p>
+                  </div>
                 )}
               </ScrollArea>
-              
-              {/* Message Input */}
-              <CardFooter className="p-3 border-t">
-                <form onSubmit={handleSendMessage} className="flex w-full space-x-2">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message here..."
-                    className="flex-1"
-                  />
-                  <Button type="submit" disabled={!newMessage.trim()}>
-                    <SendIcon className="h-4 w-4 mr-2" />
-                    Send
-                  </Button>
-                </form>
-              </CardFooter>
+
+              {/* Message input */}
+              <form onSubmit={handleSendMessage} className="mt-4 flex items-center space-x-2">
+                <Input
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  placeholder="Type your message..."
+                  className="flex-1"
+                />
+                <Button type="submit" disabled={!messageInput.trim()}>
+                  <Send size={18} className="mr-2" />
+                  Send
+                </Button>
+              </form>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4">
-              <p className="text-lg font-medium">Select a conversation</p>
-              <p className="mt-1">Choose a conversation from the list to view messages.</p>
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <MessageSquareText className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="font-medium text-xl">Select a conversation</h3>
+              <p className="text-muted-foreground mt-2">
+                Choose a conversation from the list to start chatting
+              </p>
             </div>
           )}
-        </div>
+        </Card>
       </div>
-    </Card>
+    </div>
   );
 };
 
