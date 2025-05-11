@@ -178,8 +178,8 @@ export const QuickActions: React.FC = () => {
     // Log the user activity
     if (user?.id) {
       try {
-        // Fix the Promise chain by using async/await or a proper Promise chain
-        void supabase
+        // Fix the Promise chain by using proper Promise handling
+        supabase
           .from('user_activities')
           .insert({
             user_id: user.id,
