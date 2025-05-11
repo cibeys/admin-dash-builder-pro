@@ -6,8 +6,8 @@ import { MainSidebar } from './MainSidebar';
 import { Breadcrumb } from '../components/Breadcrumb';
 import { Toaster } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import { MainHeader } from '../components/Header';
+import AIChatButton from '@/components/AIChatButton';
 
 const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -69,6 +69,9 @@ const MainLayout: React.FC = () => {
         
         {/* Footer will be here */}
       </div>
+      
+      {/* AI Chat Button on all pages */}
+      <AIChatButton />
       
       <Toaster position="top-right" />
     </div>
