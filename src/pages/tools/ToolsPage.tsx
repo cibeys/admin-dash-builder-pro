@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -7,15 +6,22 @@ import {
   MessageSquareText, 
   Image, 
   Thermometer, 
-  Volume2, 
+  VolumeX, 
   Layout, 
   Grid3X3, 
   User, 
   Cpu,
   Download,
+  BarChart,
+  FileCog,
+  FileJson,
   QrCode,
   PenTool,
   Type,
+  Clock,
+  Binary,
+  Fingerprint,
+  Search,
   Hash,
   Percent,
   Github,
@@ -90,7 +96,7 @@ const tools: ToolCardProps[] = [
     badges: ["Info", "API"]
   },
   {
-    icon: <Volume2 size={24} />,
+    icon: <VolumeX size={24} />,
     title: "Text to Speech",
     description: "Ubah teks menjadi suara dengan berbagai pilihan suara",
     to: "/tools/text-to-speech",

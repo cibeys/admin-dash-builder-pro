@@ -33,6 +33,17 @@ interface ActionItem {
   description?: string;
 }
 
+interface TemplateType {
+  id: string;
+  name: string;
+}
+
+interface DownloadType {
+  id: string;
+  url: string;
+  templates: TemplateType | null;
+}
+
 export const QuickActions: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -55,9 +66,10 @@ export const QuickActions: React.FC = () => {
           .limit(2);
           
         // Get recent template downloads or views
+        // Handling the case where templates relation might not exist
         const { data: downloads } = await supabase
           .from('download_history')
-          .select('id, url, templates(id, name)')
+          .select('id, url')
           .eq('user_id', user.id)
           .order('download_time', { ascending: false })
           .limit(2);
@@ -73,8 +85,8 @@ export const QuickActions: React.FC = () => {
         const recentDownloads = downloads?.map(download => ({
           id: download.id,
           type: 'download',
-          title: download.templates?.name || 'Template',
-          url: `/templates/${download.templates?.id || ''}`
+          title: 'Downloaded Template',
+          url: download.url || '#'
         })) || [];
         
         setRecentItems([...recentPosts, ...recentDownloads].slice(0, 3));
@@ -157,19 +169,23 @@ export const QuickActions: React.FC = () => {
   const handleActionClick = (action: ActionItem) => {
     // Log the user activity
     if (user?.id) {
-      supabase
-        .from('user_activities')
-        .insert({
-          user_id: user.id,
-          activity_type: `click_quick_action_${action.label.toLowerCase().replace(/\s+/g, '_')}`,
-          metadata: { action_name: action.label, action_url: action.to }
-        })
-        .then(() => {
-          console.log('Activity logged');
-        })
-        .catch((error) => {
-          console.error('Error logging activity:', error);
-        });
+      try {
+        supabase
+          .from('user_activities')
+          .insert({
+            user_id: user.id,
+            activity_type: `click_quick_action_${action.label.toLowerCase().replace(/\s+/g, '_')}`,
+            metadata: { action_name: action.label, action_url: action.to }
+          })
+          .then(() => {
+            console.log('Activity logged');
+          })
+          .catch((error) => {
+            console.error('Error logging activity:', error);
+          });
+      } catch (error) {
+        console.error('Error logging activity:', error);
+      }
     }
   };
 

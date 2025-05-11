@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars, Text, useHelper } from '@react-three/drei';
@@ -37,7 +36,7 @@ const Torus = ({ position, args = [1, 0.4, 16, 100], color = "#ff0066" }) => {
   
   return (
     <mesh ref={mesh} position={position as [number, number, number]}>
-      <torusGeometry args={args as [number, number, number, number, number]} />
+      <torusGeometry args={args as [number, number, number, number]} />
       <meshStandardMaterial color={color} />
     </mesh>
   );
@@ -103,7 +102,6 @@ const Sphere = ({ position, args = [1, 32, 32], color = "#6a0dad" }) => {
 // Light Component
 const Lighting = ({ position = [10, 10, 10] }) => {
   const lightRef = useRef<THREE.DirectionalLight>(null);
-  useHelper(lightRef, THREE.DirectionalLightHelper, 5);
   
   return (
     <>
@@ -115,6 +113,35 @@ const Lighting = ({ position = [10, 10, 10] }) => {
         castShadow 
       />
     </>
+  );
+};
+
+// 3D Logo Component for Header - Ensuring this component is properly exported
+export const Logo3D: React.FC<{ size?: number }> = ({ size = 50 }) => {
+  return (
+    <div style={{ height: size, width: size * 3 }}>
+      <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
+        <Lighting />
+        <Sphere position={[-2, 0, 0]} args={[0.6, 16, 16]} color="#00bfa6" />
+        <Box position={[0, 0, 0]} size={[0.8, 0.8, 0.8]} color="#f97316" />
+        <Torus position={[2, 0, 0]} args={[0.6, 0.2, 16, 50]} color="#8b5cf6" />
+        <Text 
+          position={[0, -1.2, 0]} 
+          fontSize={0.5}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+        >
+          TanoeLuis
+        </Text>
+        <OrbitControls 
+          enableZoom={false}
+          enablePan={false}
+          autoRotate
+          autoRotateSpeed={3}
+        />
+      </Canvas>
+    </div>
   );
 };
 
