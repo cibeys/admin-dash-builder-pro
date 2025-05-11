@@ -178,14 +178,17 @@ export const QuickActions: React.FC = () => {
     // Log the user activity
     if (user?.id) {
       try {
-        // Fix the Promise chain by using proper Promise handling
-        supabase
+        // Fix the Promise chain by properly handling the Promise
+        const promise = supabase
           .from('user_activities')
           .insert({
             user_id: user.id,
             activity_type: `click_quick_action_${action.label.toLowerCase().replace(/\s+/g, '_')}`,
             metadata: { action_name: action.label, action_url: action.to }
-          })
+          });
+          
+        // Handle the promise with proper then/catch
+        promise
           .then(() => {
             console.log('Activity logged');
           })
