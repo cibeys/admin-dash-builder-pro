@@ -116,7 +116,7 @@ const Lighting = ({ position = [10, 10, 10] }) => {
   );
 };
 
-// 3D Logo Component for Header - Ensuring this component is properly exported
+// 3D Logo Component for Header
 export const Logo3D: React.FC<{ size?: number }> = ({ size = 50 }) => {
   return (
     <div style={{ height: size, width: size * 3 }}>
