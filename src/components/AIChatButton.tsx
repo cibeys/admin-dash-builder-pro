@@ -12,9 +12,13 @@ const AIChatButton: React.FC = () => {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        <Button size="lg" className="rounded-full h-14 w-14 shadow-lg bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700">
+        <Button 
+          size="lg" 
+          className="rounded-full h-14 w-14 shadow-lg bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700"
+          aria-label="Chat dengan Admin"
+        >
           <MessageSquareText size={24} />
-          <span className="sr-only">Chat dengan AI</span>
+          <span className="sr-only">Chat dengan Admin</span>
         </Button>
       </motion.div>
     </Link>

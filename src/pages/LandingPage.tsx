@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useAnimation } from 'framer-motion';
@@ -231,6 +230,7 @@ const LandingPage: React.FC = () => {
         console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
+        // Fixed: Move this inside useEffect, now controls.start will be called after component mount
         controls.start({ opacity: 1, y: 0 });
       }
     };
@@ -304,6 +304,37 @@ const LandingPage: React.FC = () => {
     }
   ];
   
+  // New animated background component for hero section
+  const AnimatedBackground = () => (
+    <div className="absolute inset-0 overflow-hidden -z-10">
+      <div className="absolute w-full h-full">
+        {[...Array(10)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full bg-gradient-to-r from-primary/10 to-secondary/10"
+            style={{
+              width: Math.random() * 200 + 50,
+              height: Math.random() * 200 + 50,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              x: [0, Math.random() * 50 - 25],
+              y: [0, Math.random() * 50 - 25],
+              scale: [1, Math.random() * 0.4 + 0.8, 1],
+              opacity: [0.3, 0.5, 0.3]
+            }}
+            transition={{
+              duration: Math.random() * 10 + 15,
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
   const displayTemplates = templates.length > 0 ? templates : placeholderTemplates;
   const displayBlogs = blogs.length > 0 ? blogs : placeholderBlogs;
 
@@ -312,9 +343,11 @@ const LandingPage: React.FC = () => {
       {/* Floating AI Chat Button */}
       <FloatingAIChatButton />
       
-      {/* Hero Section with Vite-like Animation */}
-      <section className={`bg-gradient-to-br ${getGradientClass()} py-20 overflow-hidden`}>
-        <div className="container mx-auto px-4">
+      {/* Hero Section with Enhanced Vite-like Animation */}
+      <section className={`bg-gradient-to-br ${getGradientClass()} py-20 overflow-hidden relative`}>
+        <AnimatedBackground />
+        
+        <div className="container mx-auto px-4 relative z-10">
           <div className="flex flex-col lg:flex-row items-center justify-between">
             <div className="lg:w-1/2 mb-10 lg:mb-0">
               <motion.h1 
