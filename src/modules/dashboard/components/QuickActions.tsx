@@ -58,21 +58,29 @@ export const QuickActions: React.FC = () => {
       
       try {
         // Get recent blog posts by the user
-        const { data: posts } = await supabase
+        const { data: posts, error: postsError } = await supabase
           .from('posts')
           .select('id, title, slug')
           .eq('author_id', user.id)
           .order('updated_at', { ascending: false })
           .limit(2);
           
+        if (postsError) {
+          console.error('Error fetching posts:', postsError);
+        }
+          
         // Get recent template downloads or views
         // Handling the case where templates relation might not exist
-        const { data: downloads } = await supabase
+        const { data: downloads, error: downloadsError } = await supabase
           .from('download_history')
           .select('id, url')
           .eq('user_id', user.id)
           .order('download_time', { ascending: false })
           .limit(2);
+        
+        if (downloadsError) {
+          console.error('Error fetching downloads:', downloadsError);
+        }
         
         // Combine and format the results
         const recentPosts = posts?.map(post => ({
@@ -170,7 +178,8 @@ export const QuickActions: React.FC = () => {
     // Log the user activity
     if (user?.id) {
       try {
-        supabase
+        // Fix the Promise chain
+        void supabase
           .from('user_activities')
           .insert({
             user_id: user.id,

@@ -25,6 +25,8 @@ import {
   Search,
   Hash,
   Percent,
+  Github,
+  Mail
 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -245,7 +247,7 @@ const ToolsPage: React.FC = () => {
         </p>
         <div className="flex justify-center gap-4">
           <Button>
-            <GitHub className="mr-2 h-4 w-4" />
+            <Github className="mr-2 h-4 w-4" />
             GitHub
           </Button>
           <Button variant="outline">
