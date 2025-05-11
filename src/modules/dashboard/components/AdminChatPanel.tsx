@@ -1,437 +1,458 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/common/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Send, RefreshCw, User, Bot, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { MessageSquare, Send, Search, User, Clock, ArrowRight } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
+import { useAuth } from '@/common/context/AuthContext';
 
-// Define types for our chat objects
-type ChatConversation = {
+// Type definition for chat conversation
+interface ChatConversation {
   id: string;
   user_id: string;
   last_message: string | null;
-  created_at: string;
   updated_at: string;
-  profiles?: {
+  created_at?: string;
+  profiles: {
     username: string | null;
     full_name: string | null;
-  };
-};
+  }[];
+}
 
-type ChatMessage = {
+// Type definition for chat message
+interface ChatMessage {
   id: string;
-  conversation_id: string;
   content: string;
-  role: 'user' | 'admin';
   created_at: string;
-  user_id?: string | null;
-};
+  role: 'admin' | 'user';
+  user_id: string | null;
+}
 
 const AdminChatPanel: React.FC = () => {
-  const { user } = useAuth();
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [messageInput, setMessageInput] = useState('');
-  const [loadingConversations, setLoadingConversations] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredConversations, setFilteredConversations] = useState<ChatConversation[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedConversation, setSelectedConversation] = useState<ChatConversation | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Load conversations
-  const loadConversations = async () => {
-    try {
-      setLoadingConversations(true);
-      
-      // Get all conversations as admin
-      const { data, error } = await supabase
-        .from('ai_chat_conversations')
-        .select(`
-          id, 
-          user_id,
-          last_message,
-          updated_at,
-          profiles(username, full_name)
-        `)
-        .order('updated_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading conversations:', error);
-        toast.error('Failed to load conversations');
-        return;
-      }
-
-      if (data) {
-        setConversations(data as ChatConversation[]);
-        
-        // Auto-select the first conversation if none is selected
-        if (data.length > 0 && !selectedConversation) {
-          setSelectedConversation(data[0].id);
-          loadMessages(data[0].id);
-        }
-      }
-    } catch (err) {
-      console.error('Error loading conversations:', err);
-      toast.error('Failed to load conversations');
-    } finally {
-      setLoadingConversations(false);
-    }
-  };
-
-  // Load messages for a specific conversation
-  const loadMessages = async (conversationId: string) => {
-    try {
-      setLoadingMessages(true);
-      
-      const { data, error } = await supabase
-        .from('ai_chat_history')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('Error loading messages:', error);
-        toast.error('Failed to load messages');
-        return;
-      }
-
-      if (data) {
-        setMessages(data as ChatMessage[]);
-      }
-    } catch (err) {
-      console.error('Error loading messages:', err);
-      toast.error('Failed to load messages');
-    } finally {
-      setLoadingMessages(false);
-    }
-  };
-
-  // Send a message
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!messageInput.trim() || !selectedConversation || !user) return;
-    
-    const newMessage = {
-      conversation_id: selectedConversation,
-      content: messageInput.trim(),
-      role: 'admin' as const,
-      user_id: user.id
-    };
-    
-    try {
-      // Add the message to the database
-      const { data: messageData, error: messageError } = await supabase
-        .from('ai_chat_history')
-        .insert(newMessage)
-        .select()
-        .single();
-
-      if (messageError) {
-        console.error('Error sending message:', messageError);
-        toast.error('Failed to send message');
-        return;
-      }
-      
-      // Update the conversation's last message and timestamp
-      const { error: conversationError } = await supabase
-        .from('ai_chat_conversations')
-        .update({ 
-          last_message: messageInput.trim(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedConversation);
-
-      if (conversationError) {
-        console.error('Error updating conversation:', conversationError);
-        toast.error('Failed to update conversation');
-      }
-
-      // Add the new message to the messages array
-      if (messageData) {
-        setMessages(prev => [...prev, messageData as ChatMessage]);
-      }
-      
-      // Clear the input
-      setMessageInput('');
-      
-      // Scroll to bottom
-      scrollToBottom();
-      
-      // Refresh the conversation list to update the order
-      loadConversations();
-      
-    } catch (err) {
-      console.error('Error in chat interaction:', err);
-      toast.error('Failed to process chat interaction');
-    }
-  };
+  const [activeTab, setActiveTab] = useState<string>('all');
   
-  // Scroll to bottom of messages
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  
-  // Setup subscription for real-time updates
+  // Fetch conversations
   useEffect(() => {
-    const setupSubscription = async () => {
-      // Subscribe to new messages
-      const messagesChannel = supabase
-        .channel('admin-chat-messages')
-        .on('postgres_changes', 
+    const fetchConversations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('ai_chat_conversations')
+          .select(`
+            id,
+            user_id,
+            last_message,
+            updated_at,
+            profiles:user_id(username, full_name)
+          `)
+          .order('updated_at', { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        // Convert the data to the appropriate type
+        const conversationsData = data as unknown as ChatConversation[];
+        setConversations(conversationsData);
+        setFilteredConversations(conversationsData);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching conversations:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load conversations. Please try again later.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      }
+    };
+
+    fetchConversations();
+
+    // Set up real-time subscription for new conversations
+    const channel = supabase
+      .channel('admin-conversations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ai_chat_conversations',
+        },
+        (payload) => {
+          // Reload conversations when changes occur
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast]);
+
+  // Filter conversations based on search term
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredConversations(conversations);
+    } else {
+      const filtered = conversations.filter(conv => {
+        const username = conv.profiles[0]?.username?.toLowerCase() || '';
+        const fullName = conv.profiles[0]?.full_name?.toLowerCase() || '';
+        const term = searchTerm.toLowerCase();
+        return username.includes(term) || fullName.includes(term);
+      });
+      setFilteredConversations(filtered);
+    }
+  }, [searchTerm, conversations]);
+
+  // Filter conversations based on active tab
+  useEffect(() => {
+    if (activeTab === 'all') {
+      setFilteredConversations(conversations);
+    } else {
+      // Implement other filters based on tab
+      // For example, 'unread', 'recent', etc.
+      setFilteredConversations(conversations);
+    }
+  }, [activeTab, conversations]);
+
+  // Fetch chat messages when selecting a conversation
+  useEffect(() => {
+    if (selectedConversation) {
+      const fetchMessages = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('ai_chat_history')
+            .select('*')
+            .eq('conversation_id', selectedConversation.id)
+            .order('created_at', { ascending: true });
+
+          if (error) {
+            throw error;
+          }
+
+          setChatMessages(data as ChatMessage[]);
+        } catch (error) {
+          console.error('Error fetching messages:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load messages. Please try again later.",
+            variant: "destructive",
+          });
+        }
+      };
+
+      fetchMessages();
+
+      // Set up real-time subscription for messages
+      const channel = supabase
+        .channel(`conversation-${selectedConversation.id}`)
+        .on(
+          'postgres_changes',
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'ai_chat_history'
-          }, 
+            table: 'ai_chat_history',
+            filter: `conversation_id=eq.${selectedConversation.id}`,
+          },
           (payload) => {
             const newMessage = payload.new as ChatMessage;
-            if (newMessage.conversation_id === selectedConversation) {
-              setMessages(prev => [...prev, newMessage]);
-              scrollToBottom();
-            }
+            setChatMessages(prevMessages => [...prevMessages, newMessage]);
           }
         )
         .subscribe();
-        
-      // Subscribe to conversation updates
-      const conversationsChannel = supabase
-        .channel('admin-chat-conversations')
-        .on('postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'ai_chat_conversations'
-          },
-          () => {
-            loadConversations();
-          }
-        )
-        .subscribe();
-        
+
       return () => {
-        supabase.removeChannel(messagesChannel);
-        supabase.removeChannel(conversationsChannel);
+        supabase.removeChannel(channel);
       };
-    };
-    
-    setupSubscription();
-  }, [selectedConversation]);
-
-  // Initial load
-  useEffect(() => {
-    if (user) {
-      loadConversations();
     }
-  }, [user]);
+  }, [selectedConversation, toast]);
 
-  // Scroll to bottom when messages change
+  // Auto-scroll to the latest message
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
-  // Filter conversations based on search query
-  const filteredConversations = conversations.filter(conversation => {
-    const username = conversation.profiles?.username || '';
-    const fullName = conversation.profiles?.full_name || '';
-    const lastMessage = conversation.last_message || '';
-    
-    return (
-      username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
-
-  // Function to refresh conversations
-  const handleRefresh = () => {
-    loadConversations();
-    if (selectedConversation) {
-      loadMessages(selectedConversation);
+  const handleSendMessage = async () => {
+    if (!selectedConversation || !newMessage.trim() || !user) {
+      return;
     }
-    toast.success('Refreshed conversations');
+
+    setIsSending(true);
+
+    try {
+      // Insert message
+      const { error: messageError } = await supabase
+        .from('ai_chat_history')
+        .insert({
+          conversation_id: selectedConversation.id,
+          content: newMessage.trim(),
+          role: 'admin',
+          user_id: user.id,
+        });
+
+      if (messageError) {
+        throw messageError;
+      }
+
+      // Update last_message in conversation
+      const { error: conversationError } = await supabase
+        .from('ai_chat_conversations')
+        .update({ 
+          last_message: newMessage.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedConversation.id);
+
+      if (conversationError) {
+        throw conversationError;
+      }
+
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  // Function to handle conversation selection
-  const handleSelectConversation = (conversationId: string) => {
-    setSelectedConversation(conversationId);
-    loadMessages(conversationId);
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    return name.charAt(0).toUpperCase();
+  };
+
+  const formatTime = (timestamp: string) => {
+    try {
+      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+    } catch (error) {
+      return 'unknown time';
+    }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)]">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Admin Chat</h2>
-        <Button variant="outline" size="sm" onClick={handleRefresh}>
-          <RefreshCw size={16} className="mr-2" />
-          Refresh
-        </Button>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
-        {/* Conversations list */}
-        <Card className="p-4 h-full">
-          <div className="flex items-center gap-2 mb-4">
-            <Search className="w-4 h-4 opacity-50" />
-            <Input
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9"
-            />
+    <Card className="flex flex-col h-[calc(100vh-16rem)]">
+      <CardHeader className="pb-4">
+        <div className="flex justify-between items-center">
+          <CardTitle>Admin Chat Panel</CardTitle>
+          <Badge variant="outline" className="flex items-center">
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+            Online
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-grow overflow-hidden pb-0 space-x-2">
+        {/* Conversations List */}
+        <div className="w-1/3 border-r pr-2 flex flex-col">
+          <div className="pb-3">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search conversations..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
           
-          <ScrollArea className="h-[calc(100%-3rem)]">
-            {loadingConversations ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center space-x-4 p-3">
-                    <Skeleton className="h-12 w-12 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[200px]" />
-                      <Skeleton className="h-4 w-[160px]" />
-                    </div>
-                  </div>
-                ))}
+          <Tabs 
+            value={activeTab} 
+            onValueChange={setActiveTab}
+            className="mb-2"
+          >
+            <TabsList className="w-full">
+              <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
+              <TabsTrigger value="unread" className="flex-1">Unread</TabsTrigger>
+              <TabsTrigger value="recent" className="flex-1">Recent</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <ScrollArea className="flex-grow pr-4">
+            {isLoading ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
               </div>
-            ) : filteredConversations.length > 0 ? (
-              <div className="space-y-1">
-                {filteredConversations.map((conversation) => (
-                  <div
-                    key={conversation.id}
-                    className={`flex items-start space-x-3 p-3 rounded-md cursor-pointer ${
-                      selectedConversation === conversation.id
-                        ? 'bg-secondary'
-                        : 'hover:bg-secondary/50'
-                    }`}
-                    onClick={() => handleSelectConversation(conversation.id)}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                      <User size={18} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline">
-                        <p className="font-medium truncate">
-                          {conversation.profiles?.full_name || conversation.profiles?.username || 'Anonymous User'}
-                        </p>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true })}
+            ) : filteredConversations.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageSquare className="mx-auto h-8 w-8 mb-2" />
+                <p>No conversations found</p>
+              </div>
+            ) : (
+              filteredConversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  className={`p-3 mb-2 rounded-lg cursor-pointer ${
+                    selectedConversation?.id === conv.id
+                      ? 'bg-primary/10 border border-primary/50'
+                      : 'hover:bg-secondary'
+                  }`}
+                  onClick={() => setSelectedConversation(conv)}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Avatar>
+                      <AvatarFallback>
+                        {getInitials(conv.profiles[0]?.username || conv.profiles[0]?.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-grow min-w-0">
+                      <div className="flex justify-between">
+                        <span className="font-medium truncate">
+                          {conv.profiles[0]?.full_name || conv.profiles[0]?.username || 'Unknown User'}
+                        </span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatTime(conv.updated_at)}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-1">
-                        {conversation.last_message || 'No messages yet'}
+                      <p className="text-sm text-muted-foreground truncate">
+                        {conv.last_message || 'No messages yet'}
                       </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <MessageSquareText className="h-12 w-12 text-muted-foreground mb-2" />
-                <h3 className="font-medium text-lg">No conversations</h3>
-                <p className="text-muted-foreground text-sm">
-                  {searchQuery ? 'No conversations match your search' : 'Wait for users to start chatting'}
-                </p>
-              </div>
+                </div>
+              ))
             )}
           </ScrollArea>
-        </Card>
-        
-        {/* Chat area */}
-        <Card className="p-4 lg:col-span-2 flex flex-col h-full">
+        </div>
+
+        {/* Chat Area */}
+        <div className="w-2/3 flex flex-col">
           {selectedConversation ? (
             <>
-              {/* Messages */}
-              <ScrollArea className="flex-1 pr-4">
-                {loadingMessages ? (
-                  <div className="space-y-4 py-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex flex-col space-y-2">
-                        <Skeleton className="h-10 w-full max-w-md" />
-                        <Skeleton className="h-20 w-full max-w-md self-end" />
-                      </div>
-                    ))}
+              {/* Chat Header */}
+              <div className="pb-3 border-b mb-3 flex justify-between items-center">
+                <div className="flex items-center">
+                  <Avatar className="h-8 w-8 mr-2">
+                    <AvatarFallback>
+                      {getInitials(
+                        selectedConversation.profiles[0]?.username || 
+                        selectedConversation.profiles[0]?.full_name
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-medium">
+                      {selectedConversation.profiles[0]?.full_name || 
+                       selectedConversation.profiles[0]?.username || 
+                       'Unknown User'}
+                    </h3>
+                    <div className="flex items-center text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3 mr-1" />
+                      <span>Last active {formatTime(selectedConversation.updated_at)}</span>
+                    </div>
                   </div>
-                ) : messages.length > 0 ? (
-                  <div className="space-y-4 py-4">
-                    {messages.map((message) => (
+                </div>
+                <Button variant="ghost" size="sm">
+                  <User className="h-4 w-4 mr-1" />
+                  Profile
+                </Button>
+              </div>
+
+              {/* Chat Messages */}
+              <ScrollArea className="flex-grow pr-4 mb-3">
+                <div className="space-y-4 pb-4">
+                  {chatMessages.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <MessageSquare className="mx-auto h-8 w-8 mb-2" />
+                      <p>No messages yet</p>
+                      <p className="text-sm">Start the conversation by sending a message.</p>
+                    </div>
+                  ) : (
+                    chatMessages.map((message) => (
                       <div
                         key={message.id}
-                        className={`flex ${
-                          message.role === 'admin' ? 'justify-end' : 'justify-start'
-                        }`}
+                        className={`flex ${message.role === 'admin' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`px-4 py-2 rounded-lg max-w-[80%] ${
+                          className={`max-w-3/4 rounded-lg p-3 ${
                             message.role === 'admin'
                               ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted'
+                              : 'bg-secondary'
                           }`}
                         >
-                          <div className="flex items-center gap-2 mb-1 text-xs opacity-70">
-                            {message.role === 'admin' ? (
-                              <>
-                                <span>Admin</span>
-                                <Bot size={12} />
-                              </>
-                            ) : (
-                              <>
-                                <User size={12} />
-                                <span>User</span>
-                              </>
-                            )}
-                            <span>•</span>
-                            <span>{formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}</span>
+                          <p>{message.content}</p>
+                          <div className="text-xs mt-1 opacity-70 text-right">
+                            {formatTime(message.created_at)}
                           </div>
-                          <p className="whitespace-pre-wrap">{message.content}</p>
                         </div>
                       </div>
-                    ))}
-                    <div ref={messagesEndRef} />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <MessageSquareText className="h-12 w-12 text-muted-foreground mb-2" />
-                    <h3 className="font-medium text-lg">No messages yet</h3>
-                    <p className="text-muted-foreground text-sm">
-                      Send a message to start the conversation
-                    </p>
-                  </div>
-                )}
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
               </ScrollArea>
 
-              {/* Message input */}
-              <form onSubmit={handleSendMessage} className="mt-4 flex items-center space-x-2">
-                <Input
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1"
-                />
-                <Button type="submit" disabled={!messageInput.trim()}>
-                  <Send size={18} className="mr-2" />
-                  Send
-                </Button>
-              </form>
+              {/* Message Input */}
+              <div className="border-t pt-3">
+                <div className="flex items-center space-x-2">
+                  <Input
+                    placeholder="Type your message..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    disabled={isSending}
+                    className="flex-grow"
+                  />
+                  <Button 
+                    onClick={handleSendMessage} 
+                    disabled={!newMessage.trim() || isSending}
+                    className={isSending ? 'opacity-70' : ''}
+                  >
+                    {isSending ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-t-transparent border-white mr-2"></div>
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    Send
+                  </Button>
+                </div>
+              </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <MessageSquareText className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="font-medium text-xl">Select a conversation</h3>
-              <p className="text-muted-foreground mt-2">
-                Choose a conversation from the list to start chatting
+            <div className="flex flex-col items-center justify-center h-full text-center p-4">
+              <MessageSquare className="h-16 w-16 mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium mb-2">Welcome to Admin Chat</h3>
+              <p className="text-muted-foreground mb-4 max-w-sm">
+                Select a conversation from the list to view messages and respond to users.
               </p>
+              <Button variant="outline" className="flex items-center">
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Select a conversation
+              </Button>
             </div>
           )}
-        </Card>
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
