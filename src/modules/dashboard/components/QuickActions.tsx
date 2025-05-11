@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -179,20 +178,18 @@ export const QuickActions: React.FC = () => {
     if (user?.id) {
       try {
         // Fix the Promise chain by properly handling the Promise
-        const promise = supabase
+        supabase
           .from('user_activities')
           .insert({
             user_id: user.id,
             activity_type: `click_quick_action_${action.label.toLowerCase().replace(/\s+/g, '_')}`,
             metadata: { action_name: action.label, action_url: action.to }
-          });
-          
-        // Handle the promise with proper then/catch
-        promise
-          .then(() => {
+          })
+          .then((response) => {
             console.log('Activity logged');
           })
-          .catch((error) => {
+          .then(undefined, (error) => {
+            // This pattern works with both Promise and PromiseLike
             console.error('Error logging activity:', error);
           });
       } catch (error) {
