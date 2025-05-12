@@ -115,11 +115,11 @@ const DashboardPage: React.FC = () => {
 
         if (activityError) {
           console.error('Error fetching activities:', activityError);
-          // Don't throw here, just show a toast and continue with empty activities
+          // Changed from 'warning' to 'default' to match allowed variant types
           toast({
             title: 'Warning',
             description: 'Failed to load activity data',
-            variant: 'warning'
+            variant: 'default'
           });
         } else {
           setActivities(activityData || []);

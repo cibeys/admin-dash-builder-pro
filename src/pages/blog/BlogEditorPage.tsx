@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -130,12 +129,32 @@ const BlogEditorPage = () => {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select('*')
+        .select(`
+          *,
+          profiles:author_id(*),
+          categories(*)
+        `)
         .eq('slug', slug)
         .single();
         
       if (error) throw error;
-      if (data) setPost(data);
+      
+      if (data) {
+        // Fix: Ensure the status field is properly typed
+        const postStatus = data.status === 'published' ? 'published' : 'draft';
+        
+        setPost({
+          id: data.id,
+          title: data.title,
+          content: data.content || defaultMDXContent,
+          excerpt: data.excerpt || '',
+          slug: data.slug,
+          featured_image: data.featured_image || '',
+          category_id: data.category_id,
+          status: postStatus,
+          author_id: data.author_id
+        });
+      }
     } catch (error) {
       console.error('Error fetching post:', error);
       toast({
