@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { idID } from 'date-fns/locale';
+import { id } from 'date-fns/locale';
 
 interface ActivityItem {
   id: string;
@@ -62,7 +62,7 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({ activities = [] 
     
     // Format the date
     const date = new Date(activity.created_at);
-    const relativeTime = formatDistanceToNow(date, { addSuffix: true, locale: idID });
+    const relativeTime = formatDistanceToNow(date, { addSuffix: true, locale: id });
     
     return {
       id: activity.id,
