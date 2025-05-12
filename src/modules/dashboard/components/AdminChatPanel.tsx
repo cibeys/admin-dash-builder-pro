@@ -1,467 +1,448 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/common/context/AuthContext';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle,
-  CardDescription,
-  CardFooter 
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, User, Send, Clock, RefreshCw, Search } from "lucide-react";
+import { Send, UserCircle, AlertCircle, Search, MoreHorizontal, ArchiveIcon, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
-// Define types for Chat functionality
-interface ChatMessage {
-  id: string;
-  content: string;
-  role: 'user' | 'admin';
-  created_at: string;
-  conversation_id: string;
-  user_id?: string;
-}
-
-interface ChatConversation {
+interface Conversation {
   id: string;
   user_id: string;
   last_message: string;
   created_at: string;
   updated_at: string;
-  profiles?: {
-    username: string;
-    full_name: string;
-  }[];
+  user_name?: string;
+  unread_count?: number;
 }
 
-interface ChatPanelProps {}
+interface Message {
+  id: string;
+  conversation_id: string;
+  content: string;
+  role: 'user' | 'admin';
+  created_at: string;
+}
 
-export const AdminChatPanel: React.FC<ChatPanelProps> = () => {
-  const { user } = useAuth();
+interface User {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
+
+export const AdminChatPanel: React.FC = () => {
   const { toast } = useToast();
-  const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversation, setActiveConversation] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const [users, setUsers] = useState<Record<string, User>>({});
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messageSubscription = useRef<any>(null);
-
-  // Subscribe to new messages when a conversation is selected
-  useEffect(() => {
-    if (selectedConversation) {
-      // Clean up previous subscription if exists
-      if (messageSubscription.current) {
-        supabase.removeChannel(messageSubscription.current);
-      }
-
-      // Set up new subscription for real-time messages
-      messageSubscription.current = supabase
-        .channel(`chat-${selectedConversation}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'ai_chat_history',
-            filter: `conversation_id=eq.${selectedConversation}`
-          },
-          (payload) => {
-            const newMsg = payload.new as ChatMessage;
-            setMessages(prev => [...prev, newMsg]);
-          }
-        )
-        .subscribe();
-
-      // Load existing messages for this conversation
-      loadMessages(selectedConversation);
-    }
-
-    // Cleanup subscription on unmount or when conversation changes
-    return () => {
-      if (messageSubscription.current) {
-        supabase.removeChannel(messageSubscription.current);
-      }
-    };
-  }, [selectedConversation]);
-
-  // Fetch conversations from Supabase
-  useEffect(() => {
-    fetchConversations();
-    
-    // Set up subscription for new conversations or updates to existing ones
-    const conversationsChannel = supabase
-      .channel('public:ai_chat_conversations')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'ai_chat_conversations' },
-        () => {
-          fetchConversations();
-        }
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(conversationsChannel);
-    };
-  }, []);
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    fetchConversations();
+  }, [searchQuery, activeTab]);
+
+  useEffect(() => {
+    if (activeConversation) {
+      fetchMessages(activeConversation);
+    }
+  }, [activeConversation]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   const fetchConversations = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('ai_chat_conversations')
         .select(`
-          id,
-          user_id,
-          last_message,
-          updated_at,
-          profiles:user_id(username, full_name)
+          *,
+          profiles:user_id (id, full_name, avatar_url)
         `)
         .order('updated_at', { ascending: false });
 
-      if (error) {
-        throw error;
+      if (searchQuery) {
+        query = query.textSearch('last_message', searchQuery);
       }
 
-      // Cast the data to match our type
-      const typedData = data as unknown as ChatConversation[];
-      setConversations(typedData);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load conversations",
-        variant: "destructive"
+      if (activeTab === 'unread') {
+        // This would require additional tracking of read status in the database
+        // Here is a placeholder, you'd need to adjust based on your schema
+        query = query.eq('is_read', false);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      // Process conversations and extract user data
+      const conversationsData = data.map(conv => {
+        const user = conv.profiles as unknown as User;
+        
+        if (user) {
+          setUsers(prev => ({...prev, [user.id]: user}));
+        }
+        
+        return {
+          ...conv,
+          user_name: user ? user.full_name : 'Unknown User',
+          // Placeholder for unread count
+          unread_count: Math.floor(Math.random() * 5)
+        };
       });
+
+      setConversations(conversationsData);
+      
+      // If no active conversation, select the first one
+      if (conversationsData.length > 0 && !activeConversation) {
+        setActiveConversation(conversationsData[0].id);
+      }
+      
+    } catch (error) {
       console.error('Error fetching conversations:', error);
+      toast({ 
+        variant: "destructive",
+        title: "Error", 
+        description: "Gagal memuat percakapan" 
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const loadMessages = async (conversationId: string) => {
+  const fetchMessages = async (conversationId: string) => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('ai_chat_history')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
 
-      if (error) {
-        throw error;
-      }
-
-      setMessages(data as ChatMessage[]);
+      if (error) throw error;
+      
+      setMessages(data || []);
     } catch (error) {
+      console.error('Error fetching messages:', error);
       toast({
+        variant: "destructive",
         title: "Error",
-        description: "Failed to load chat messages",
-        variant: "destructive"
+        description: "Gagal memuat riwayat chat"
       });
-      console.error('Error loading messages:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedConversation || !user) return;
-
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !activeConversation) return;
+    
     try {
-      const messageContent = newMessage.trim();
-      setNewMessage('');
-
       // Add message to the database
-      const { error } = await supabase
+      const { error: messageError } = await supabase
         .from('ai_chat_history')
         .insert({
-          content: messageContent,
-          role: 'admin',
-          conversation_id: selectedConversation,
-          user_id: user.id
+          conversation_id: activeConversation,
+          content: newMessage,
+          role: 'admin'
         });
 
-      if (error) throw error;
+      if (messageError) throw messageError;
 
       // Update last message in conversation
-      await supabase
+      const { error: updateError } = await supabase
         .from('ai_chat_conversations')
-        .update({
-          last_message: messageContent,
+        .update({ 
+          last_message: newMessage,
           updated_at: new Date().toISOString()
         })
-        .eq('id', selectedConversation);
+        .eq('id', activeConversation);
 
+      if (updateError) throw updateError;
+      
+      // Optimistically update UI
+      const newMessageObj = {
+        id: crypto.randomUUID(),
+        conversation_id: activeConversation,
+        content: newMessage,
+        role: 'admin' as 'admin',
+        created_at: new Date().toISOString()
+      };
+      
+      setMessages([...messages, newMessageObj]);
+      
+      // Update conversation in the list
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === activeConversation) {
+          return { ...conv, last_message: newMessage, updated_at: new Date().toISOString() };
+        }
+        return conv;
+      }));
+      
+      setNewMessage('');
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive"
-      });
       console.error('Error sending message:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Gagal mengirim pesan"
+      });
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchConversations();
-    if (selectedConversation) {
-      await loadMessages(selectedConversation);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
-    setRefreshing(false);
   };
 
-  const filteredConversations = conversations.filter(conv => {
-    if (!searchQuery) return true;
-    
-    const username = conv.profiles?.[0]?.username || '';
-    const fullName = conv.profiles?.[0]?.full_name || '';
-    
-    return (
-      username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.last_message.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  };
 
   return (
-    <Card className="w-full h-[calc(100vh-13rem)] overflow-hidden">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center">
-            <MessageSquare className="mr-2 h-5 w-5" />
-            <span>Admin Chat</span>
+    <div className="border-t">
+      <div className="flex h-[500px]">
+        {/* Conversations sidebar */}
+        <div className="w-80 border-r flex flex-col">
+          <div className="p-4 border-b">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Cari percakapan..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
+              />
+            </div>
           </div>
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            <span className="sr-only">Refresh</span>
-          </Button>
-        </CardTitle>
-        <CardDescription>
-          Kelola percakapan dengan pengguna
-        </CardDescription>
-      </CardHeader>
-      
-      <Tabs defaultValue="all" className="h-[calc(100%-5rem)]">
-        <div className="px-4 pb-2">
-          <TabsList className="w-full">
-            <TabsTrigger value="all" className="flex-1">
-              Semua Chat
-            </TabsTrigger>
-            <TabsTrigger value="recent" className="flex-1">
-              Terbaru
-            </TabsTrigger>
-            <TabsTrigger value="unread" className="flex-1">
-              Belum Dijawab
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        
-        <TabsContent value="all" className="h-full p-0 mt-0">
-          <div className="flex h-full">
-            {/* Conversations List */}
-            <div className="w-1/3 border-r border-border h-full flex flex-col">
-              <div className="p-3 border-b border-border">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Cari percakapan..."
-                    className="pl-9"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
+          
+          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="px-4 pt-2">
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="all">Semua</TabsTrigger>
+                <TabsTrigger value="unread">Belum Dibaca</TabsTrigger>
+              </TabsList>
+            </div>
+          </Tabs>
+          
+          <ScrollArea className="flex-1">
+            {isLoading ? (
+              <div className="flex flex-col space-y-2 p-4">
+                {Array(5).fill(null).map((_, i) => (
+                  <div key={i} className="flex items-center space-x-4 p-3">
+                    <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+                      <div className="h-3 bg-muted animate-pulse rounded w-1/2" />
+                    </div>
+                  </div>
+                ))}
               </div>
-              
-              <ScrollArea className="flex-1">
-                {loading && !filteredConversations.length ? (
-                  <div className="p-6 text-center text-muted-foreground">
-                    <p>Loading conversations...</p>
-                  </div>
-                ) : filteredConversations.length === 0 ? (
-                  <div className="p-6 text-center text-muted-foreground">
-                    <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                    <p>Tidak ada percakapan yang ditemukan</p>
-                  </div>
-                ) : (
-                  filteredConversations.map((conv) => (
-                    <div
-                      key={conv.id}
-                      className={`p-3 cursor-pointer hover:bg-secondary/50 border-b border-border ${
-                        selectedConversation === conv.id ? 'bg-secondary' : ''
-                      }`}
-                      onClick={() => setSelectedConversation(conv.id)}
-                    >
-                      <div className="flex items-center">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src="" />
-                          <AvatarFallback>
-                            {(conv.profiles?.[0]?.username || 'U')[0].toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="ml-3 flex-1 overflow-hidden">
-                          <p className="font-medium">
-                            {conv.profiles?.[0]?.full_name || conv.profiles?.[0]?.username || 'User'}
-                          </p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {conv.last_message || 'No messages yet'}
-                          </p>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3 inline mr-1" />
-                          {format(new Date(conv.updated_at), 'HH:mm')}
-                        </div>
+            ) : conversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
+                <p className="text-muted-foreground">Tidak ada percakapan ditemukan</p>
+              </div>
+            ) : (
+              <div className="flex flex-col p-2">
+                {conversations.map((conversation) => (
+                  <button
+                    key={conversation.id}
+                    className={`flex items-start space-x-3 p-3 rounded-md text-left transition-colors ${
+                      activeConversation === conversation.id
+                        ? 'bg-accent'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => setActiveConversation(conversation.id)}
+                  >
+                    <Avatar className="h-10 w-10">
+                      {users[conversation.user_id]?.avatar_url ? (
+                        <AvatarImage src={users[conversation.user_id].avatar_url || ''} />
+                      ) : (
+                        <AvatarFallback>
+                          {getInitials(conversation.user_name || 'UN')}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    
+                    <div className="flex-1 overflow-hidden">
+                      <div className="flex justify-between items-center">
+                        <p className="font-medium truncate">
+                          {conversation.user_name || 'Pengguna'}
+                        </p>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(conversation.updated_at)}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm truncate text-muted-foreground">
+                        {conversation.last_message || 'Tidak ada pesan'}
+                      </p>
+                      
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(conversation.created_at).toLocaleDateString('id-ID')}
+                        </span>
+                        
+                        {conversation.unread_count ? (
+                          <Badge variant="secondary" className="text-xs">
+                            {conversation.unread_count}
+                          </Badge>
+                        ) : null}
                       </div>
                     </div>
-                  ))
-                )}
-              </ScrollArea>
-            </div>
-            
-            {/* Chat Messages */}
-            <div className="w-2/3 flex flex-col h-full">
-              {selectedConversation ? (
-                <>
-                  {/* Chat header */}
-                  <div className="p-3 border-b border-border bg-card">
-                    {conversations.find(c => c.id === selectedConversation)?.profiles && (
-                      <div className="flex items-center">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>
-                            {(conversations.find(c => c.id === selectedConversation)?.profiles?.[0]?.username || 'U')[0].toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="ml-3">
-                          <p className="font-medium">
-                            {conversations.find(c => c.id === selectedConversation)?.profiles?.[0]?.full_name || 
-                             conversations.find(c => c.id === selectedConversation)?.profiles?.[0]?.username || 'User'}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Messages */}
-                  <ScrollArea className="flex-1 p-4">
-                    {messages.length === 0 ? (
-                      <div className="h-full flex items-center justify-center text-muted-foreground">
-                        <div className="text-center">
-                          <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                          <p>Belum ada pesan dalam percakapan ini</p>
-                        </div>
-                      </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
+        
+        {/* Messages area */}
+        <div className="flex-1 flex flex-col">
+          {activeConversation && (
+            <>
+              {/* Chat header */}
+              <div className="p-4 border-b flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-8 w-8">
+                    {activeConversation && users[conversations.find(c => c.id === activeConversation)?.user_id || '']?.avatar_url ? (
+                      <AvatarImage src={users[conversations.find(c => c.id === activeConversation)?.user_id || ''].avatar_url || ''} />
                     ) : (
-                      messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`mb-4 flex ${
-                            message.role === 'admin' ? 'justify-end' : 'justify-start'
-                          }`}
-                        >
-                          <div
-                            className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                              message.role === 'admin'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-secondary'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              {message.role === 'user' ? (
-                                <User className="h-4 w-4" />
-                              ) : (
-                                <MessageSquare className="h-4 w-4" />
-                              )}
-                              <span className="text-xs font-medium">
-                                {message.role === 'admin' ? 'Admin' : 'User'}
-                              </span>
-                            </div>
-                            <p>{message.content}</p>
-                            <div className="text-right mt-1">
-                              <span className="text-xs opacity-70">
-                                {format(new Date(message.created_at), 'HH:mm')}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))
+                      <AvatarFallback>
+                        {getInitials(conversations.find(c => c.id === activeConversation)?.user_name || 'UN')}
+                      </AvatarFallback>
                     )}
-                    <div ref={messagesEndRef} />
-                  </ScrollArea>
-                  
-                  {/* Message input */}
-                  <div className="p-3 border-t border-border">
-                    <form onSubmit={handleSendMessage} className="flex gap-2">
-                      <Input
-                        placeholder="Ketik pesan..."
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button type="submit" disabled={!newMessage.trim()}>
-                        <Send className="h-4 w-4 mr-2" />
-                        Kirim
-                      </Button>
-                    </form>
-                  </div>
-                </>
-              ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                    <h3 className="text-lg font-medium mb-1">Belum ada percakapan yang dipilih</h3>
-                    <p>Pilih percakapan dari daftar di sebelah kiri untuk mulai mengobrol</p>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">
+                      {conversations.find(c => c.id === activeConversation)?.user_name || 'Pengguna'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Aktif {Math.floor(Math.random() * 60)} menit yang lalu
+                    </p>
                   </div>
                 </div>
-              )}
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <ArchiveIcon className="h-4 w-4 mr-2" /> Arsipkan
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" /> Hapus
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
+              {/* Messages */}
+              <ScrollArea className="flex-1 p-4">
+                <div className="flex flex-col space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-48 p-4 text-center">
+                      <UserCircle className="h-12 w-12 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">Belum ada percakapan</p>
+                    </div>
+                  ) : (
+                    messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.role === 'admin' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[75%] rounded-lg px-4 py-3 ${
+                            message.role === 'admin'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted'
+                          }`}
+                        >
+                          <div className="flex flex-col">
+                            <p className="text-sm whitespace-pre-wrap break-words">
+                              {message.content}
+                            </p>
+                            <span className={`text-xs mt-1 ${message.role === 'admin' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                              {formatDate(message.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+              
+              {/* Message input */}
+              <div className="p-4 border-t">
+                <div className="flex space-x-2">
+                  <Textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ketik pesan..."
+                    className="flex-1 resize-none"
+                    rows={2}
+                  />
+                  <Button onClick={sendMessage} disabled={!newMessage.trim()}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+          
+          {!activeConversation && (
+            <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+              <UserCircle className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-xl font-medium mb-2">Tidak Ada Percakapan Aktif</h3>
+              <p className="text-muted-foreground max-w-md">
+                Pilih percakapan dari daftar sebelah kiri atau tunggu pesan baru dari pengguna
+              </p>
             </div>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="recent" className="h-full p-0 mt-0">
-          <div className="p-6 h-full flex items-center justify-center text-muted-foreground">
-            <p>Percakapan terbaru akan ditampilkan di sini</p>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="unread" className="h-full p-0 mt-0">
-          <div className="p-6 h-full flex items-center justify-center text-muted-foreground">
-            <p>Percakapan yang belum dijawab akan ditampilkan di sini</p>
-          </div>
-        </TabsContent>
-      </Tabs>
-      
-      <CardFooter className="border-t border-border p-3">
-        <p className="text-xs text-muted-foreground">
-          Admin dapat mengelola semua percakapan dengan pengguna di sini
-        </p>
-      </CardFooter>
-    </Card>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };

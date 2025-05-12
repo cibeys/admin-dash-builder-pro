@@ -70,7 +70,7 @@ const DashboardPage: React.FC = () => {
           <CardTitle>Admin Chat</CardTitle>
           <CardDescription>Kelola percakapan pengguna</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <AdminChatPanel />
         </CardContent>
       </Card>
