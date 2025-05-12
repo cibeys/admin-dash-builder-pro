@@ -10,6 +10,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
+// Import local images
+import blogTechImage from '/images/blog/blog-tech.jpg';
+import blogDesignImage from '/images/blog/blog-design.jpg';
+import blogProgrammingImage from '/images/blog/blog-programming.jpg';
+
+// Create a mapping for local images
+const localImages = {
+  'blog-tech': blogTechImage,
+  'blog-design': blogDesignImage,
+  'blog-programming': blogProgrammingImage,
+};
+
 const BlogPostPage = () => {
   const { slug } = useParams<{ slug: string }>();
   
@@ -30,6 +42,28 @@ const BlogPostPage = () => {
       return data;
     }
   });
+
+  // Function to get the appropriate image
+  const getPostImage = (imageUrl: string | null) => {
+    if (!imageUrl) return blogTechImage;
+    
+    // If the image URL doesn't start with http (local reference)
+    if (!imageUrl.startsWith('http')) {
+      // Try to find a local image match based on the filename
+      const imageName = imageUrl.split('/').pop()?.split('.')[0];
+      if (imageName && imageName in localImages) {
+        return localImages[imageName as keyof typeof localImages];
+      }
+    }
+    
+    // If it's an external URL, use it directly
+    if (imageUrl.startsWith('http')) {
+      return imageUrl;
+    }
+    
+    // Default fallback
+    return blogTechImage;
+  };
 
   if (isLoading) return <BlogPostSkeleton />;
   
@@ -61,15 +95,13 @@ const BlogPostPage = () => {
         </div>
         
         {/* Featured Image */}
-        {post.featured_image && (
-          <div className="mb-8 rounded-lg overflow-hidden h-[400px]">
-            <img 
-              src={post.featured_image} 
-              alt={post.title} 
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
+        <div className="mb-8 rounded-lg overflow-hidden h-[400px]">
+          <img 
+            src={getPostImage(post.featured_image)}
+            alt={post.title} 
+            className="w-full h-full object-cover"
+          />
+        </div>
         
         {/* Post Header */}
         <div className="mb-8">

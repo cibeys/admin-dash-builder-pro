@@ -6,6 +6,11 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
+// Import local images for blog posts
+import blogTechImage from '/images/blog/blog-tech.jpg';
+import blogDesignImage from '/images/blog/blog-design.jpg';
+import blogProgrammingImage from '/images/blog/blog-programming.jpg';
+
 type Post = {
   id: string;
   title: string;
@@ -22,6 +27,13 @@ type Post = {
     name: string;
     slug: string;
   };
+};
+
+// Create a mapping for local images
+const localImages = {
+  'blog-tech': blogTechImage,
+  'blog-design': blogDesignImage,
+  'blog-programming': blogProgrammingImage,
 };
 
 const BlogPage = () => {
@@ -97,6 +109,32 @@ const BlogPage = () => {
     setSelectedCategory(slug);
   };
 
+  // Get appropriate image for post
+  const getPostImage = (post: Post) => {
+    // If the post has an image URL that doesn't start with http (local reference)
+    if (post.featured_image && !post.featured_image.startsWith('http')) {
+      // Try to find a local image match based on the filename
+      const imageName = post.featured_image.split('/').pop()?.split('.')[0];
+      if (imageName && imageName in localImages) {
+        return localImages[imageName as keyof typeof localImages];
+      }
+    }
+    
+    // If it's an external URL, use it directly
+    if (post.featured_image && post.featured_image.startsWith('http')) {
+      return post.featured_image;
+    }
+    
+    // Default images based on category
+    const category = post.category.name.toLowerCase();
+    if (category.includes('design')) return blogDesignImage;
+    if (category.includes('tech')) return blogTechImage;
+    if (category.includes('program') || category.includes('develop')) return blogProgrammingImage;
+    
+    // Final fallback
+    return blogTechImage;
+  };
+
   // Placeholder posts for when data is empty
   const placeholderPosts = [
     {
@@ -104,10 +142,10 @@ const BlogPage = () => {
       title: 'Cara Membuat Website Modern dengan React dan Tailwind CSS',
       slug: 'cara-membuat-website-modern',
       excerpt: 'Pelajari langkah-langkah untuk membuat website modern yang responsif menggunakan React dan Tailwind CSS',
-      featured_image: '/placeholder.svg',
+      featured_image: blogTechImage,
       status: 'published',
       published_at: new Date().toISOString(),
-      author: { username: 'admin', avatar_url: null },
+      author: { username: 'admin', avatar_url: '' },
       category: { name: 'Web Development', slug: 'web-development' }
     },
     {
@@ -115,10 +153,10 @@ const BlogPage = () => {
       title: 'Mengenal Dasar-dasar TypeScript untuk Pengembang JavaScript',
       slug: 'dasar-typescript',
       excerpt: 'Panduan lengkap untuk memulai dengan TypeScript bagi pengembang yang sudah familiar dengan JavaScript',
-      featured_image: '/placeholder.svg',
+      featured_image: blogProgrammingImage,
       status: 'published',
       published_at: new Date().toISOString(),
-      author: { username: 'admin', avatar_url: null },
+      author: { username: 'admin', avatar_url: '' },
       category: { name: 'JavaScript', slug: 'javascript' }
     },
     {
@@ -126,10 +164,10 @@ const BlogPage = () => {
       title: 'Mengoptimalkan Performa Aplikasi React dengan Hooks',
       slug: 'optimasi-react-hooks',
       excerpt: 'Tips dan trik untuk meningkatkan performa aplikasi React dengan penggunaan Hooks yang efisien',
-      featured_image: '/placeholder.svg',
+      featured_image: blogDesignImage,
       status: 'published',
       published_at: new Date().toISOString(),
-      author: { username: 'admin', avatar_url: null },
+      author: { username: 'admin', avatar_url: '' },
       category: { name: 'React', slug: 'react' }
     }
   ];
@@ -207,7 +245,7 @@ const BlogPage = () => {
             <Card key={post.id} className="overflow-hidden">
               <div className="h-48 overflow-hidden">
                 <img 
-                  src={post.featured_image || '/placeholder.svg'} 
+                  src={getPostImage(post)}
                   alt={post.title}
                   className="w-full h-full object-cover transition-transform hover:scale-105"
                 />

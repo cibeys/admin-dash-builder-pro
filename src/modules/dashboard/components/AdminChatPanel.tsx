@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -83,7 +82,7 @@ export const AdminChatPanel: React.FC = () => {
   const fetchConversations = async () => {
     setIsLoading(true);
     try {
-      // First, fetch all conversations
+      // First, fetch conversations without joins to avoid deep type instantiation
       let query = supabase
         .from('ai_chat_conversations')
         .select('*')
@@ -93,11 +92,8 @@ export const AdminChatPanel: React.FC = () => {
         query = query.textSearch('last_message', searchQuery);
       }
 
-      if (activeTab === 'unread') {
-        // This would require additional tracking of read status in the database
-        // Here is a placeholder, you'd need to adjust based on your schema
-        query = query.eq('is_read', false);
-      }
+      // Since the is_read column doesn't exist, we'll skip the unread filter for now
+      // We'll implement it properly once the database schema is updated
 
       const { data: conversationsData, error: conversationsError } = await query;
 
@@ -109,7 +105,7 @@ export const AdminChatPanel: React.FC = () => {
         return;
       }
 
-      // Then fetch user profiles separately to avoid deep type instantiation
+      // Fetch user profiles separately to avoid deep type instantiation
       const userIds = [...new Set(conversationsData.map(conv => conv.user_id))];
       
       const { data: profilesData, error: profilesError } = await supabase
@@ -119,7 +115,7 @@ export const AdminChatPanel: React.FC = () => {
 
       if (profilesError) throw profilesError;
 
-      // Create a map of user profiles
+      // Map user profiles for easier lookup
       const userProfiles: Record<string, ProfileData> = {};
       if (profilesData) {
         profilesData.forEach(profile => {
@@ -145,7 +141,7 @@ export const AdminChatPanel: React.FC = () => {
         return {
           ...conv,
           user_name: profile ? profile.full_name : 'Unknown User',
-          // Placeholder for unread count
+          // Placeholder for unread count since we don't have that column yet
           unread_count: Math.floor(Math.random() * 5)
         };
       });
