@@ -83,12 +83,10 @@ export const AdminChatPanel: React.FC = () => {
   const fetchConversations = async () => {
     setIsLoading(true);
     try {
+      // First, fetch all conversations
       let query = supabase
         .from('ai_chat_conversations')
-        .select(`
-          *,
-          profiles:user_id (id, full_name, avatar_url)
-        `)
+        .select('*')
         .order('updated_at', { ascending: false });
 
       if (searchQuery) {
@@ -101,42 +99,64 @@ export const AdminChatPanel: React.FC = () => {
         query = query.eq('is_read', false);
       }
 
-      const { data, error } = await query;
+      const { data: conversationsData, error: conversationsError } = await query;
 
-      if (error) throw error;
+      if (conversationsError) throw conversationsError;
 
-      if (data) {
-        // Create a new users object without state dependency
-        const newUsers: Record<string, User> = {};
-        
-        // Process conversations and extract user data
-        const processedConversations = data.map(conv => {
-          const profile = conv.profiles as unknown as ProfileData | null;
-          
-          if (profile) {
-            newUsers[profile.id] = {
-              id: profile.id,
-              full_name: profile.full_name,
-              avatar_url: profile.avatar_url
-            };
-          }
-          
-          return {
-            ...conv,
-            user_name: profile ? profile.full_name : 'Unknown User',
-            // Placeholder for unread count
-            unread_count: Math.floor(Math.random() * 5)
-          };
+      if (!conversationsData) {
+        setConversations([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Then fetch user profiles separately to avoid deep type instantiation
+      const userIds = [...new Set(conversationsData.map(conv => conv.user_id))];
+      
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map of user profiles
+      const userProfiles: Record<string, ProfileData> = {};
+      if (profilesData) {
+        profilesData.forEach(profile => {
+          userProfiles[profile.id] = profile;
         });
+      }
 
-        // Update users state once
-        setUsers(newUsers);
-        setConversations(processedConversations);
+      // Create a new users object
+      const newUsers: Record<string, User> = {};
+      
+      // Process conversations and add user data
+      const processedConversations = conversationsData.map(conv => {
+        const profile = userProfiles[conv.user_id];
         
-        // If no active conversation, select the first one
-        if (processedConversations.length > 0 && !activeConversation) {
-          setActiveConversation(processedConversations[0].id);
+        if (profile) {
+          newUsers[profile.id] = {
+            id: profile.id,
+            full_name: profile.full_name,
+            avatar_url: profile.avatar_url
+          };
         }
+        
+        return {
+          ...conv,
+          user_name: profile ? profile.full_name : 'Unknown User',
+          // Placeholder for unread count
+          unread_count: Math.floor(Math.random() * 5)
+        };
+      });
+
+      // Update users state
+      setUsers(newUsers);
+      setConversations(processedConversations);
+      
+      // If no active conversation, select the first one
+      if (processedConversations.length > 0 && !activeConversation) {
+        setActiveConversation(processedConversations[0].id);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
