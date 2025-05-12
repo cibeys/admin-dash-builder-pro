@@ -105,26 +105,31 @@ export const AdminChatPanel: React.FC = () => {
 
       if (error) throw error;
 
+      // Create a temporary state update to avoid nested setState in the loop
+      const tempUsers: Record<string, User> = { ...users };
+      
       // Process conversations and extract user data
       const conversationsData = data.map(conv => {
-        const user = conv.profiles as unknown as ProfileData;
+        const profile = conv.profiles as unknown as ProfileData;
         
-        if (user) {
-          setUsers(prev => ({...prev, [user.id]: {
-            id: user.id,
-            full_name: user.full_name,
-            avatar_url: user.avatar_url
-          }}));
+        if (profile) {
+          tempUsers[profile.id] = {
+            id: profile.id,
+            full_name: profile.full_name,
+            avatar_url: profile.avatar_url
+          };
         }
         
         return {
           ...conv,
-          user_name: user ? user.full_name : 'Unknown User',
+          user_name: profile ? profile.full_name : 'Unknown User',
           // Placeholder for unread count
           unread_count: Math.floor(Math.random() * 5)
         };
       });
 
+      // Update users state just once
+      setUsers(tempUsers);
       setConversations(conversationsData);
       
       // If no active conversation, select the first one
