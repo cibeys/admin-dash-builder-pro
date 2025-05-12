@@ -27,11 +27,13 @@ interface Conversation {
   unread_count?: number;
 }
 
+type MessageRole = 'user' | 'admin';
+
 interface Message {
   id: string;
   conversation_id: string;
   content: string;
-  role: 'user' | 'admin';
+  role: MessageRole;
   created_at: string;
 }
 
@@ -141,7 +143,14 @@ export const AdminChatPanel: React.FC = () => {
 
       if (error) throw error;
       
-      setMessages(data || []);
+      // Cast role to MessageRole
+      if (data) {
+        const typedMessages = data.map(message => ({
+          ...message,
+          role: message.role as MessageRole
+        }));
+        setMessages(typedMessages);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast({
@@ -183,7 +192,7 @@ export const AdminChatPanel: React.FC = () => {
         id: crypto.randomUUID(),
         conversation_id: activeConversation,
         content: newMessage,
-        role: 'admin' as 'admin',
+        role: 'admin' as MessageRole,
         created_at: new Date().toISOString()
       };
       
