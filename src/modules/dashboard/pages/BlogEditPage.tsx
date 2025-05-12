@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -365,14 +364,14 @@ function HelloWorld() {
                 <div className="space-y-2">
                   <Label htmlFor="category_id">Kategori</Label>
                   <Select
-                    value={post.category_id || ''}
+                    value={post.category_id || undefined}
                     onValueChange={(value) => handleSelectChange('category_id', value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih kategori" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tanpa kategori</SelectItem>
+                      <SelectItem value="none">Tanpa kategori</SelectItem>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
