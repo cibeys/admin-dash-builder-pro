@@ -106,8 +106,8 @@ export const AdminChatPanel: React.FC = () => {
       if (error) throw error;
 
       if (data) {
-        // Create a new users object to avoid state dependency issues
-        const newUsers = { ...users };
+        // Create a new users object without state dependency
+        const newUsers: Record<string, User> = {};
         
         // Process conversations and extract user data
         const processedConversations = data.map(conv => {
@@ -471,87 +471,4 @@ export const AdminChatPanel: React.FC = () => {
       </div>
     </div>
   );
-};
-
-// Added these missing functions from the original file
-const sendMessage = async () => {
-  if (!newMessage.trim() || !activeConversation) return;
-  
-  try {
-    // Add message to the database
-    const { error: messageError } = await supabase
-      .from('ai_chat_history')
-      .insert({
-        conversation_id: activeConversation,
-        content: newMessage,
-        role: 'admin'
-      });
-
-    if (messageError) throw messageError;
-
-    // Update last message in conversation
-    const { error: updateError } = await supabase
-      .from('ai_chat_conversations')
-      .update({ 
-        last_message: newMessage,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', activeConversation);
-
-    if (updateError) throw updateError;
-    
-    // Optimistically update UI
-    const newMessageObj = {
-      id: crypto.randomUUID(),
-      conversation_id: activeConversation,
-      content: newMessage,
-      role: 'admin' as MessageRole,
-      created_at: new Date().toISOString()
-    };
-    
-    setMessages([...messages, newMessageObj]);
-    
-    // Update conversation in the list
-    setConversations(prev => prev.map(conv => {
-      if (conv.id === activeConversation) {
-        return { ...conv, last_message: newMessage, updated_at: new Date().toISOString() };
-      }
-      return conv;
-    }));
-    
-    setNewMessage('');
-  } catch (error) {
-    console.error('Error sending message:', error);
-    toast({
-      variant: "destructive",
-      title: "Error",
-      description: "Gagal mengirim pesan"
-    });
-  }
-};
-
-const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-};
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date);
-};
-
-const getInitials = (name: string) => {
-  return name
-    .split(' ')
-    .map(part => part[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 };
