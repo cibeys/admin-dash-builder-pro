@@ -38,6 +38,14 @@ import RegisterPage from "./modules/auth/RegisterPage";
 // Dashboard
 import DashboardPage from "./modules/dashboard/DashboardPage";
 
+// Dashboard Blog Management
+import BlogManagementPage from "./modules/dashboard/pages/BlogManagementPage";
+import BlogEditPage from "./modules/dashboard/pages/BlogEditPage";
+
+// Dashboard Template Management
+import TemplateManagementPage from "./modules/dashboard/pages/TemplateManagementPage";
+import TemplateEditPage from "./modules/dashboard/pages/TemplateEditPage";
+
 // Membuat instansi QueryClient dengan konfigurasi yang benar
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -90,7 +98,16 @@ const App = () => (
                 {/* Dashboard Routes */}
                 <Route path="/dashboard" element={<AdminLayout />}>
                   <Route index element={<DashboardPage />} />
-                  {/* Add other dashboard routes here */}
+                  
+                  {/* Blog Management Routes */}
+                  <Route path="blog" element={<BlogManagementPage />} />
+                  <Route path="blog/edit/:slug" element={<BlogEditPage />} />
+                  <Route path="blog/new" element={<BlogEditPage />} />
+                  
+                  {/* Template Management Routes */}
+                  <Route path="templates" element={<TemplateManagementPage />} />
+                  <Route path="templates/edit/:id" element={<TemplateEditPage />} />
+                  <Route path="templates/new" element={<TemplateEditPage />} />
                 </Route>
                 
                 <Route path="*" element={<NotFound />} />

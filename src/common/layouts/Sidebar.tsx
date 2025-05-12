@@ -12,6 +12,8 @@ import {
   LogOut,
   ChevronRight,
   ChevronLeft,
+  MessageSquare,
+  Download,
   PanelLeft,
 } from 'lucide-react';
 
@@ -51,10 +53,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, onToggle }) => {
   
   const navItems = [
     { icon: Home, label: "Dashboard", to: "/dashboard" },
-    { icon: Users, label: "Users", to: "/dashboard/users" },
+    { icon: Users, label: "Pengguna", to: "/dashboard/users" },
     { icon: FileText, label: "Blog", to: "/dashboard/blog" },
-    { icon: LayoutTemplate, label: "Templates", to: "/dashboard/templates" },
-    { icon: Settings, label: "Settings", to: "/dashboard/settings" },
+    { icon: LayoutTemplate, label: "Template", to: "/dashboard/templates" },
+    { icon: MessageSquare, label: "Chat Admin", to: "/dashboard/chat" },
+    { icon: Download, label: "Unduhan", to: "/dashboard/downloads" },
+    { icon: Settings, label: "Pengaturan", to: "/dashboard/settings" },
   ];
   
   const isActive = (path: string) => location.pathname === path || 

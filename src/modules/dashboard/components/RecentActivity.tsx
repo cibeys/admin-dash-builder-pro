@@ -1,165 +1,154 @@
 
-import React from 'react';
-import { format, formatDistanceToNow } from 'date-fns';
-import { id } from 'date-fns/locale';
+import React, { useState, useEffect } from 'react';
+import { Activity, FileText, Download, MessageSquare } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatDistanceToNow } from 'date-fns';
+import { id as idID } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface ActivityItem {
   id: string;
-  user: {
-    name: string;
-    avatar?: string;
-  };
-  action: string;
-  target: string;
-  date: string;
-}
-
-interface ActivityData {
-  id: string;
+  user_id: string;
   activity_type: string;
   created_at: string;
-  user_id: string;
-  profiles?: {
+  profiles: {
     username: string;
-    full_name: string;
-    avatar_url?: string;
+    full_name: string | null;
+    avatar_url: string | null;
   };
-  [key: string]: any;
 }
 
-interface RecentActivityProps {
-  activities: ActivityData[];
-}
+export const RecentActivity: React.FC = () => {
+  const { toast } = useToast();
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-export const RecentActivity: React.FC<RecentActivityProps> = ({ activities = [] }) => {
-  const formatActivityData = (activity: ActivityData): ActivityItem => {
-    // Format the activity type to be more readable
-    let action = 'performed';
-    let target = activity.activity_type;
-    
-    if (activity.activity_type.includes('create')) {
-      action = 'created';
-      target = activity.activity_type.replace('create_', '').replace('_', ' ');
-    } else if (activity.activity_type.includes('update')) {
-      action = 'updated';
-      target = activity.activity_type.replace('update_', '').replace('_', ' ');
-    } else if (activity.activity_type.includes('delete')) {
-      action = 'deleted';
-      target = activity.activity_type.replace('delete_', '').replace('_', ' ');
-    } else if (activity.activity_type.includes('view')) {
-      action = 'viewed';
-      target = activity.activity_type.replace('view_', '').replace('_', ' ');
-    } else if (activity.activity_type.includes('download')) {
-      action = 'downloaded';
-      target = activity.activity_type.replace('download_', '').replace('_', ' ');
-    } else if (activity.activity_type.includes('login')) {
-      action = 'logged in';
-      target = '';
-    } else if (activity.activity_type.includes('click')) {
-      action = 'clicked';
-      target = activity.activity_type.replace('click_', '').replace('_', ' ');
-    }
-    
-    // Format the date
-    const date = new Date(activity.created_at);
-    const relativeTime = formatDistanceToNow(date, { addSuffix: true, locale: id });
-    
-    return {
-      id: activity.id,
-      user: {
-        name: activity.profiles?.full_name || activity.profiles?.username || 'User',
-        avatar: activity.profiles?.avatar_url
-      },
-      action,
-      target,
-      date: relativeTime
+  useEffect(() => {
+    const fetchActivities = async () => {
+      setIsLoading(true);
+      try {
+        const { data: activityData, error: activityError } = await supabase
+          .from('user_activities')
+          .select(`
+            id, 
+            user_id, 
+            activity_type, 
+            created_at, 
+            profiles:user_id (username, full_name, avatar_url)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (activityError) {
+          console.error('Error fetching activities:', activityError);
+          toast({
+            title: 'Peringatan',
+            description: 'Gagal memuat data aktivitas',
+            variant: 'default'
+          });
+        } else {
+          setActivities(activityData || []);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-  };
-  
-  const formattedActivities = activities.map(formatActivityData);
-  const mockActivities: ActivityItem[] = [
-    {
-      id: '1',
-      user: { name: 'John Doe', avatar: 'https://github.com/shadcn.png' },
-      action: 'created',
-      target: 'Blog Post: Getting Started with React',
-      date: '10 min ago'
-    },
-    {
-      id: '2',
-      user: { name: 'Jane Smith' },
-      action: 'updated',
-      target: 'Template: Portfolio Pro',
-      date: '1 hour ago'
-    },
-    {
-      id: '3',
-      user: { name: 'Robert Johnson' },
-      action: 'deleted',
-      target: 'User: michael@example.com',
-      date: '3 hours ago'
-    },
-    {
-      id: '4',
-      user: { name: 'Lisa Brown' },
-      action: 'published',
-      target: 'Blog Post: CSS Grid Mastery',
-      date: '5 hours ago'
-    },
-    {
-      id: '5',
-      user: { name: 'Admin' },
-      action: 'updated',
-      target: 'System Settings',
-      date: '1 day ago'
+
+    fetchActivities();
+
+    // Set up a subscription for real-time updates
+    const subscription = supabase
+      .channel('public:user_activities')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'user_activities' 
+      }, payload => {
+        console.log('New activity received:', payload);
+        fetchActivities();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'post':
+        return <FileText className="h-6 w-6 text-blue-500" />;
+      case 'download':
+        return <Download className="h-6 w-6 text-green-500" />;
+      case 'message':
+        return <MessageSquare className="h-6 w-6 text-purple-500" />;
+      default:
+        return <Activity className="h-6 w-6 text-gray-500" />;
     }
-  ];
-  
-  // Use real activities if available, otherwise use mock data
-  const displayActivities = formattedActivities.length > 0 ? formattedActivities : mockActivities;
+  };
+
+  const getActivityText = (activity: ActivityItem) => {
+    const userName = activity.profiles?.full_name || activity.profiles?.username || 'User';
+    
+    switch (activity.activity_type) {
+      case 'post':
+        return `${userName} membuat post blog baru`;
+      case 'download':
+        return `${userName} mengunduh template`;
+      case 'message':
+        return `${userName} mengirim pesan baru`;
+      default:
+        return `${userName} melakukan aktivitas`;
+    }
+  };
 
   return (
-    <div className="bg-card text-card-foreground rounded-lg shadow-sm">
-      <div className="p-6 border-b border-border">
-        <h3 className="text-lg font-semibold">Recent Activity</h3>
-      </div>
-      
-      <div className="divide-y divide-border">
-        {displayActivities.map((activity) => (
-          <div key={activity.id} className="p-4 hover:bg-muted/50">
-            <div className="flex items-start">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mr-3 flex-shrink-0">
-                {activity.user.avatar ? (
-                  <img
-                    src={activity.user.avatar}
-                    alt={activity.user.name}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="text-primary font-semibold">
-                    {activity.user.name.charAt(0)}
-                  </span>
-                )}
+    <Card>
+      <CardHeader>
+        <CardTitle>Aktivitas Terbaru</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex flex-col space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center space-x-4">
+                <div className="h-10 w-10 rounded-full bg-secondary animate-pulse"></div>
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 bg-secondary rounded animate-pulse w-3/4"></div>
+                  <div className="h-3 bg-secondary rounded animate-pulse w-1/2"></div>
+                </div>
               </div>
-              
-              <div>
-                <p className="text-sm">
-                  <span className="font-medium">{activity.user.name}</span> {' '}
-                  <span className="text-muted-foreground">{activity.action}</span> {' '}
-                  <span className="font-medium">{activity.target}</span>
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">{activity.date}</p>
-              </div>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
-      
-      <div className="p-4 border-t border-border text-center">
-        <button className="text-sm text-primary hover:underline">
-          View All Activity
-        </button>
-      </div>
-    </div>
+        ) : activities.length === 0 ? (
+          <div className="text-center py-6">
+            <Activity className="h-10 w-10 mx-auto text-muted-foreground" />
+            <p className="mt-2 text-muted-foreground">Belum ada aktivitas</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {activities.map((activity) => (
+              <div key={activity.id} className="flex items-start gap-4">
+                <div className="rounded-full bg-background p-2 border">
+                  {getActivityIcon(activity.activity_type)}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">{getActivityText(activity)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatDistanceToNow(new Date(activity.created_at), { 
+                      addSuffix: true,
+                      locale: idID
+                    })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
