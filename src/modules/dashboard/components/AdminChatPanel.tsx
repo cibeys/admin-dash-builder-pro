@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -104,38 +105,39 @@ export const AdminChatPanel: React.FC = () => {
 
       if (error) throw error;
 
-      // Create a temporary state update to avoid nested setState in the loop
-      const tempUsers: Record<string, User> = { ...users };
-      
-      // Process conversations and extract user data
-      const conversationsData = data.map(conv => {
-        const profile = conv.profiles as unknown as ProfileData;
+      if (data) {
+        // Create a new users object to avoid state dependency issues
+        const newUsers = { ...users };
         
-        if (profile) {
-          tempUsers[profile.id] = {
-            id: profile.id,
-            full_name: profile.full_name,
-            avatar_url: profile.avatar_url
+        // Process conversations and extract user data
+        const processedConversations = data.map(conv => {
+          const profile = conv.profiles as unknown as ProfileData | null;
+          
+          if (profile) {
+            newUsers[profile.id] = {
+              id: profile.id,
+              full_name: profile.full_name,
+              avatar_url: profile.avatar_url
+            };
+          }
+          
+          return {
+            ...conv,
+            user_name: profile ? profile.full_name : 'Unknown User',
+            // Placeholder for unread count
+            unread_count: Math.floor(Math.random() * 5)
           };
-        }
-        
-        return {
-          ...conv,
-          user_name: profile ? profile.full_name : 'Unknown User',
-          // Placeholder for unread count
-          unread_count: Math.floor(Math.random() * 5)
-        };
-      });
+        });
 
-      // Update users state just once
-      setUsers(tempUsers);
-      setConversations(conversationsData);
-      
-      // If no active conversation, select the first one
-      if (conversationsData.length > 0 && !activeConversation) {
-        setActiveConversation(conversationsData[0].id);
+        // Update users state once
+        setUsers(newUsers);
+        setConversations(processedConversations);
+        
+        // If no active conversation, select the first one
+        if (processedConversations.length > 0 && !activeConversation) {
+          setActiveConversation(processedConversations[0].id);
+        }
       }
-      
     } catch (error) {
       console.error('Error fetching conversations:', error);
       toast({ 
@@ -469,4 +471,87 @@ export const AdminChatPanel: React.FC = () => {
       </div>
     </div>
   );
+};
+
+// Added these missing functions from the original file
+const sendMessage = async () => {
+  if (!newMessage.trim() || !activeConversation) return;
+  
+  try {
+    // Add message to the database
+    const { error: messageError } = await supabase
+      .from('ai_chat_history')
+      .insert({
+        conversation_id: activeConversation,
+        content: newMessage,
+        role: 'admin'
+      });
+
+    if (messageError) throw messageError;
+
+    // Update last message in conversation
+    const { error: updateError } = await supabase
+      .from('ai_chat_conversations')
+      .update({ 
+        last_message: newMessage,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', activeConversation);
+
+    if (updateError) throw updateError;
+    
+    // Optimistically update UI
+    const newMessageObj = {
+      id: crypto.randomUUID(),
+      conversation_id: activeConversation,
+      content: newMessage,
+      role: 'admin' as MessageRole,
+      created_at: new Date().toISOString()
+    };
+    
+    setMessages([...messages, newMessageObj]);
+    
+    // Update conversation in the list
+    setConversations(prev => prev.map(conv => {
+      if (conv.id === activeConversation) {
+        return { ...conv, last_message: newMessage, updated_at: new Date().toISOString() };
+      }
+      return conv;
+    }));
+    
+    setNewMessage('');
+  } catch (error) {
+    console.error('Error sending message:', error);
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Gagal mengirim pesan"
+    });
+  }
+};
+
+const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+};
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+};
+
+const getInitials = (name: string) => {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 };

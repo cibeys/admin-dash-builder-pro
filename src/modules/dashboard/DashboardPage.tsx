@@ -7,7 +7,6 @@ import { QuickActions } from './components/QuickActions';
 import { UserGrowthChart } from './components/Charts/UserGrowthChart';
 import { BlogPostsChart } from './components/Charts/BlogPostsChart';
 import { TrafficSourcesChart } from './components/Charts/TrafficSourcesChart';
-import { AdminChatPanel } from './components/AdminChatPanel';
 import { Button } from '@/components/ui/button';
 import { 
   Card,
@@ -63,17 +62,6 @@ const DashboardPage: React.FC = () => {
       
       {/* Stats Cards */}
       <StatsOverview />
-      
-      {/* Admin Chat Panel */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Admin Chat</CardTitle>
-          <CardDescription>Kelola percakapan pengguna</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <AdminChatPanel />
-        </CardContent>
-      </Card>
       
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">

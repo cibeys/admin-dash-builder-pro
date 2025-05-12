@@ -47,6 +47,9 @@ import BlogEditPage from "./modules/dashboard/pages/BlogEditPage";
 import TemplateManagementPage from "./modules/dashboard/pages/TemplateManagementPage";
 import TemplateEditPage from "./modules/dashboard/pages/TemplateEditPage";
 
+// Dashboard Chat Admin
+import ChatAdminPage from "./modules/dashboard/pages/ChatAdminPage";
+
 // Membuat instansi QueryClient dengan konfigurasi yang benar
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -110,6 +113,9 @@ const App = () => (
                   <Route path="templates" element={<TemplateManagementPage />} />
                   <Route path="templates/edit/:id" element={<TemplateEditPage />} />
                   <Route path="templates/new" element={<TemplateEditPage />} />
+                  
+                  {/* Chat Admin Route */}
+                  <Route path="chat" element={<ChatAdminPage />} />
                 </Route>
                 
                 <Route path="*" element={<NotFound />} />
