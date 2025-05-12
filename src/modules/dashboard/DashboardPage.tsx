@@ -114,10 +114,16 @@ const DashboardPage: React.FC = () => {
           .limit(10);
 
         if (activityError) {
-          throw activityError;
+          console.error('Error fetching activities:', activityError);
+          // Don't throw here, just show a toast and continue with empty activities
+          toast({
+            title: 'Warning',
+            description: 'Failed to load activity data',
+            variant: 'warning'
+          });
+        } else {
+          setActivities(activityData || []);
         }
-
-        setActivities(activityData || []);
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -141,6 +147,7 @@ const DashboardPage: React.FC = () => {
         schema: 'public', 
         table: 'user_activities' 
       }, payload => {
+        console.log('New activity received:', payload);
         fetchDashboardData();
       })
       .subscribe();
