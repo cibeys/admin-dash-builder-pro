@@ -43,6 +43,13 @@ interface User {
   avatar_url: string | null;
 }
 
+// Define a type for the profiles returned from Supabase query
+interface ProfileData {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
+
 export const AdminChatPanel: React.FC = () => {
   const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -100,10 +107,14 @@ export const AdminChatPanel: React.FC = () => {
 
       // Process conversations and extract user data
       const conversationsData = data.map(conv => {
-        const user = conv.profiles as unknown as User;
+        const user = conv.profiles as unknown as ProfileData;
         
         if (user) {
-          setUsers(prev => ({...prev, [user.id]: user}));
+          setUsers(prev => ({...prev, [user.id]: {
+            id: user.id,
+            full_name: user.full_name,
+            avatar_url: user.avatar_url
+          }}));
         }
         
         return {
