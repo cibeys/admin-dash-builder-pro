@@ -98,21 +98,30 @@ export const fetchRelatedPosts = async (categoryId: string | null, currentPostId
   return data || [];
 };
 
-// Helper to extract code blocks from content
+// Enhanced version to extract code blocks from content with better metadata handling
 export const extractCodeBlocks = (content: string): { 
   processedContent: string, 
-  codeBlocks: Array<{ language: string, code: string, filename?: string }>
+  codeBlocks: Array<{ language: string, code: string, filename?: string, showLineNumbers?: boolean }>
 } => {
-  const codeBlockRegex = /```(\w+)(?:\s*\[([^\]]+)\])?\s*\n([\s\S]*?)```/g;
-  const codeBlocks: Array<{ language: string, code: string, filename?: string }> = [];
+  // Enhanced regex to capture language, filename and line numbers option
+  const codeBlockRegex = /```(\w+)(?:\s*\[([^\]]+)\])?(?:\s*\{([^\}]+)\})?\s*\n([\s\S]*?)```/g;
+  const codeBlocks: Array<{ language: string, code: string, filename?: string, showLineNumbers?: boolean }> = [];
   
   // Replace code blocks with placeholders and collect code block info
-  const processedContent = content.replace(codeBlockRegex, (match, lang, filename, code) => {
+  const processedContent = content.replace(codeBlockRegex, (match, lang, filename, options, code) => {
     const blockId = `__CODE_BLOCK_${codeBlocks.length}__`;
+    
+    // Parse additional options if present
+    let showLineNumbers = false;
+    if (options) {
+      showLineNumbers = options.includes('showLineNumbers') || options.includes('lineNumbers');
+    }
+    
     codeBlocks.push({ 
       language: lang, 
       code: code.trim(),
-      filename: filename?.trim()
+      filename: filename?.trim(),
+      showLineNumbers
     });
     return blockId;
   });
@@ -133,7 +142,7 @@ export const processContent = (content: string): string => {
     
     // Create string representation of component markup
     // This will be handled by MDX or a custom renderer
-    const replacement = `<CodeBlockPlaceholder id="${index}" language="${block.language}" ${block.filename ? `filename="${block.filename}"` : ''} />`;
+    const replacement = `<CodeBlockPlaceholder id="${index}" language="${block.language}" ${block.filename ? `filename="${block.filename}"` : ''} ${block.showLineNumbers ? 'showLineNumbers' : ''} />`;
     
     result = result.replace(placeholder, replacement);
   });

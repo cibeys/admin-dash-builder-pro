@@ -21,11 +21,15 @@ interface CodeTab {
 interface MultiTabCodeBlockProps {
   tabs: CodeTab[];
   defaultTab?: string;
+  showLineNumbers?: boolean;
+  title?: string;
 }
 
 export const MultiTabCodeBlock: React.FC<MultiTabCodeBlockProps> = ({
   tabs,
   defaultTab,
+  showLineNumbers = false,
+  title,
 }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isWrapped, setIsWrapped] = useState(false);
@@ -47,9 +51,27 @@ export const MultiTabCodeBlock: React.FC<MultiTabCodeBlockProps> = ({
   const toggleWordWrap = () => {
     setIsWrapped(!isWrapped);
   };
+  
+  // Format line numbers if enabled
+  const getCodeWithLineNumbers = (code: string) => {
+    if (!showLineNumbers) return null;
+    
+    return code.split('\n').map((line, i) => (
+      <div key={i} className="table-row">
+        <span className="table-cell pr-4 text-right text-zinc-500 select-none">{i + 1}</span>
+        <span className="table-cell">{line}</span>
+      </div>
+    ));
+  };
 
   return (
     <div className="relative mt-4 mb-8 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
+      {title && (
+        <div className="px-4 py-2 bg-zinc-800 border-b border-zinc-700 text-sm font-medium text-zinc-100">
+          {title}
+        </div>
+      )}
+      
       <div className="border-b border-zinc-700">
         <div className="flex justify-between items-center">
           <Tabs 
@@ -124,9 +146,15 @@ export const MultiTabCodeBlock: React.FC<MultiTabCodeBlockProps> = ({
                   "overflow-x-auto font-mono text-sm p-4",
                   isWrapped && "whitespace-pre-wrap"
                 )}>
-                  <pre className={cn("text-white", !isWrapped && "whitespace-pre")}>
-                    {tab.code}
-                  </pre>
+                  {showLineNumbers ? (
+                    <div className="table w-full">
+                      {getCodeWithLineNumbers(tab.code)}
+                    </div>
+                  ) : (
+                    <pre className={cn("text-white", !isWrapped && "whitespace-pre")}>
+                      {tab.code}
+                    </pre>
+                  )}
                 </div>
               </TabsContent>
             ))}
