@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/common/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import Editor from '@monaco-editor/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
+import { Textarea } from '@/components/ui/textarea';
+import { CodeBlock } from '@/components/CodeBlock';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -18,16 +20,28 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { processContent } from '@/utils/blogUtils';
 import { 
   Save, 
   Eye, 
   Image as ImageIcon, 
   Code, 
   FileText, 
-  List
+  List,
+  Bold,
+  Italic,
+  Underline,
+  Link,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Heading1,
+  Heading2,
+  ListOrdered,
+  ListMinus
 } from 'lucide-react';
 
-// Example MDX renderer component
+// Example renderer component
 import MDXPreview from './components/MDXPreview';
 
 interface Category {
@@ -46,18 +60,20 @@ interface Post {
   category_id: string | null;
   status: 'draft' | 'published';
   author_id: string | null;
+  published_at?: string | null;
 }
 
-const defaultMDXContent = `# Hello, MDX!
+const defaultContent = `# Hello, Welcome to Your Blog
 
-This is a sample MDX file. You can write Markdown as usual:
+This is a sample blog post. You can write your content here.
 
-## Subheading
+## Getting Started
 
-- List item 1
-- List item 2
+- Add your content
+- Format as needed
+- Add images and code examples
 
-## Code Example
+## Example Code Block
 
 \`\`\`javascript
 function hello() {
@@ -65,13 +81,7 @@ function hello() {
 }
 \`\`\`
 
-## React Component Example
-
-You can also embed React components directly in your MDX:
-
-<Box>
-  <Button>Click me!</Button>
-</Box>
+Happy blogging!
 `;
 
 const BlogEditorPage = () => {
@@ -79,10 +89,11 @@ const BlogEditorPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const contentRef = useRef<HTMLTextAreaElement>(null);
   
   const [post, setPost] = useState<Post>({
     title: '',
-    content: defaultMDXContent,
+    content: defaultContent,
     excerpt: '',
     slug: '',
     featured_image: '',
@@ -95,6 +106,7 @@ const BlogEditorPage = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('edit');
+  const [previewContent, setPreviewContent] = useState<string>('');
 
   useEffect(() => {
     fetchCategories();
@@ -104,6 +116,13 @@ const BlogEditorPage = () => {
       setPost(prev => ({ ...prev, author_id: user.id }));
     }
   }, [slug, user]);
+
+  useEffect(() => {
+    // Update preview content when post content changes or when switching to preview tab
+    if (activeTab === 'preview') {
+      setPreviewContent(post.content);
+    }
+  }, [post.content, activeTab]);
 
   const fetchCategories = async () => {
     try {
@@ -146,13 +165,14 @@ const BlogEditorPage = () => {
         setPost({
           id: data.id,
           title: data.title,
-          content: data.content || defaultMDXContent,
+          content: data.content || defaultContent,
           excerpt: data.excerpt || '',
           slug: data.slug,
           featured_image: data.featured_image || '',
           category_id: data.category_id,
           status: postStatus,
-          author_id: data.author_id
+          author_id: data.author_id,
+          published_at: data.published_at
         });
       }
     } catch (error) {
@@ -167,13 +187,9 @@ const BlogEditorPage = () => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setPost(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleContentChange = (value: string | undefined) => {
-    setPost(prev => ({ ...prev, content: value || '' }));
   };
 
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -207,6 +223,74 @@ const BlogEditorPage = () => {
 
   const handleSelectChange = (name: string, value: string) => {
     setPost(prev => ({ ...prev, [name]: value }));
+  };
+
+  const insertFormattedText = (format: string) => {
+    if (!contentRef.current) return;
+    
+    const textarea = contentRef.current;
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(selectionStart, selectionEnd);
+    
+    let formattedText = '';
+    let cursorOffset = 0;
+    
+    switch(format) {
+      case 'bold':
+        formattedText = `**${selectedText}**`;
+        cursorOffset = 2;
+        break;
+      case 'italic':
+        formattedText = `*${selectedText}*`;
+        cursorOffset = 1;
+        break;
+      case 'h1':
+        formattedText = `\n# ${selectedText}\n`;
+        cursorOffset = 2;
+        break;
+      case 'h2':
+        formattedText = `\n## ${selectedText}\n`;
+        cursorOffset = 3;
+        break;
+      case 'link':
+        formattedText = `[${selectedText}](url)`;
+        cursorOffset = 1;
+        break;
+      case 'code':
+        formattedText = selectedText ? `\`${selectedText}\`` : "```\ncode here\n```";
+        cursorOffset = selectedText ? 1 : 12;
+        break;
+      case 'list-bullet':
+        formattedText = selectedText 
+          ? selectedText.split('\n').map(line => `- ${line}`).join('\n') 
+          : "- List item\n- Another item";
+        cursorOffset = 2;
+        break;
+      case 'list-number':
+        formattedText = selectedText 
+          ? selectedText.split('\n').map((line, i) => `${i+1}. ${line}`).join('\n') 
+          : "1. First item\n2. Second item";
+        cursorOffset = 3;
+        break;
+      case 'image':
+        formattedText = `![Alt text](image-url)`;
+        cursorOffset = 9;
+        break;
+      default:
+        return;
+    }
+    
+    // Insert the formatted text
+    const newContent = textarea.value.substring(0, selectionStart) + formattedText + textarea.value.substring(selectionEnd);
+    setPost(prev => ({ ...prev, content: newContent }));
+    
+    // Set cursor position after the format indicators
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = selectionStart + formattedText.length - cursorOffset;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
   };
 
   const savePost = async () => {
@@ -248,10 +332,8 @@ const BlogEditorPage = () => {
         description: `Post has been ${post.id ? 'updated' : 'created'}`,
       });
       
-      if (!post.id) {
-        // Redirect to edit page with slug after creating a new post
-        navigate(`/dashboard/blog/edit/${post.slug}`);
-      }
+      // Redirect to post list after save
+      navigate('/dashboard/blog');
     } catch (error) {
       console.error('Error saving post:', error);
       toast({
@@ -265,25 +347,52 @@ const BlogEditorPage = () => {
   };
 
   const publishPost = async () => {
+    if (!post.title || !post.content || !post.slug) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const now = new Date().toISOString();
-      const result = await supabase
-        .from('posts')
-        .update({
-          status: 'published',
-          published_at: now,
-        })
-        .eq('id', post.id);
-        
-      if (result.error) throw result.error;
       
-      setPost(prev => ({ ...prev, status: 'published' }));
+      let result;
+      
+      if (post.id) {
+        // Update existing post
+        result = await supabase
+          .from('posts')
+          .update({
+            ...post,
+            status: 'published',
+            published_at: now
+          })
+          .eq('id', post.id);
+      } else {
+        // Create new post
+        result = await supabase
+          .from('posts')
+          .insert({
+            ...post,
+            status: 'published',
+            published_at: now,
+            author_id: user?.id || post.author_id
+          });
+      }
+      
+      if (result.error) throw result.error;
       
       toast({
         title: 'Success',
         description: 'Post has been published',
       });
+      
+      // Redirect to blog page to see the published post
+      navigate('/blog');
     } catch (error) {
       console.error('Error publishing post:', error);
       toast({
@@ -335,15 +444,13 @@ const BlogEditorPage = () => {
                 Save Draft
               </Button>
               
-              {post.id && post.status !== 'published' && (
-                <Button 
-                  onClick={publishPost}
-                  disabled={isSaving}
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Publish
-                </Button>
-              )}
+              <Button 
+                onClick={publishPost}
+                disabled={isSaving}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Publish
+              </Button>
             </div>
           </div>
           
@@ -360,7 +467,7 @@ const BlogEditorPage = () => {
             />
           </div>
           
-          {/* MDX Editor with Preview */}
+          {/* Text Editor with Preview */}
           <Card className="mb-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="flex justify-between items-center px-4 pt-2">
@@ -376,26 +483,53 @@ const BlogEditorPage = () => {
               
               <Separator className="mt-2" />
               
-              <TabsContent value="edit" className="mt-0 p-0">
-                <div className="h-[500px]">
-                  <Editor
-                    height="500px"
-                    language="markdown"
+              <TabsContent value="edit" className="mt-0 p-4">
+                <div className="flex flex-wrap gap-2 mb-4 p-2 bg-muted/20 rounded-md">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormattedText('bold')}>
+                    <Bold className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormattedText('italic')}>
+                    <Italic className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormattedText('h1')}>
+                    <Heading1 className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormattedText('h2')}>
+                    <Heading2 className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormattedText('link')}>
+                    <Link className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormattedText('code')}>
+                    <Code className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormattedText('list-bullet')}>
+                    <ListMinus className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormattedText('list-number')}>
+                    <ListOrdered className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => insertFormattedText('image')}>
+                    <ImageIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="h-[450px]">
+                  <Textarea
+                    ref={contentRef}
+                    name="content"
                     value={post.content}
-                    onChange={handleContentChange}
-                    theme="vs-dark"
-                    options={{
-                      minimap: { enabled: false },
-                      wordWrap: 'on',
-                      scrollBeyondLastLine: false,
-                    }}
+                    onChange={handleInputChange}
+                    className="h-full font-mono text-sm resize-none"
+                    placeholder="Write your post content here..."
                   />
                 </div>
               </TabsContent>
               
               <TabsContent value="preview" className="mt-0 p-4">
                 <ScrollArea className="h-[500px] pr-4">
-                  <MDXPreview content={post.content} />
+                  <div className="prose dark:prose-invert max-w-none">
+                    <MDXPreview content={previewContent} />
+                  </div>
                 </ScrollArea>
               </TabsContent>
             </Tabs>
@@ -427,12 +561,13 @@ const BlogEditorPage = () => {
               <div>
                 <Label htmlFor="excerpt">Excerpt</Label>
                 <div className="mt-1">
-                  <Input
+                  <Textarea
                     id="excerpt"
                     name="excerpt"
                     value={post.excerpt}
                     onChange={handleInputChange}
                     placeholder="Brief summary of your post"
+                    rows={3}
                   />
                 </div>
               </div>
@@ -455,6 +590,9 @@ const BlogEditorPage = () => {
                       src={post.featured_image} 
                       alt="Featured" 
                       className="w-full h-32 object-cover"
+                      onError={(e) => { 
+                        (e.target as HTMLImageElement).src = '/images/blog/blog-tech.jpg';
+                      }} 
                     />
                   </div>
                 )}
@@ -486,9 +624,19 @@ const BlogEditorPage = () => {
               {/* Status */}
               <div>
                 <Label htmlFor="status">Status</Label>
-                <p className="text-sm font-medium capitalize">
-                  {post.status}
-                </p>
+                <div className="flex items-center space-x-2 mt-1">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    post.status === 'published' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                  }`}>
+                    {post.status === 'published' ? 'Published' : 'Draft'}
+                  </span>
+                  
+                  {post.published_at && post.status === 'published' && (
+                    <span className="text-xs text-muted-foreground">
+                      on {new Date(post.published_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -1,78 +1,92 @@
 
 import React from 'react';
-import { Card } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import CodeBlock from '@/components/CodeBlock';
+import MultiTabCodeBlock from '@/components/MultiTabCodeBlock';
+import { extractCodeBlocks, processContent } from '@/utils/blogUtils';
 
 interface MDXPreviewProps {
   content: string;
 }
 
-// Simple component for MDX preview
-// In a real implementation, you would parse and render MDX properly
 const MDXPreview: React.FC<MDXPreviewProps> = ({ content }) => {
-  const formatMarkdown = (markdown: string) => {
-    // Very basic markdown formatting - in a real app you would use a proper MDX processor
-    let formatted = markdown;
+  if (!content) return null;
+  
+  // Extract code blocks from content
+  const { processedContent, codeBlocks } = extractCodeBlocks(content);
+  
+  // Convert Markdown to HTML (basic implementation for this example)
+  const renderedContent = processedContent
+    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+    .replace(/\*\*(.*)\*\*/gm, '<strong>$1</strong>')
+    .replace(/\*(.*)\*/gm, '<em>$1</em>')
+    .replace(/!\[(.*?)\]\((.*?)\)/gm, '<img alt="$1" src="$2" class="my-4 rounded-lg max-w-full" />')
+    .replace(/\[(.*?)\]\((.*?)\)/gm, '<a href="$2" class="text-primary hover:underline">$1</a>')
+    .replace(/`([^`]+)`/gm, '<code class="bg-muted px-1 py-0.5 rounded">$1</code>')
+    .replace(/^- (.*$)/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, (match) => `<ul class="my-4 list-disc pl-6">${match}</ul>`)
+    .replace(/^(\d+)\. (.*$)/gm, '<li>$2</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, (match) => match.includes('. ') ? `<ol class="my-4 list-decimal pl-6">${match}</ol>` : match)
+    .replace(/\n\n/g, '<p class="mb-4"></p>');
     
-    // Headers
-    formatted = formatted.replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold mt-6 mb-4">$1</h1>');
-    formatted = formatted.replace(/^## (.+)$/gm, '<h2 class="text-2xl font-bold mt-5 mb-3">$1</h2>');
-    formatted = formatted.replace(/^### (.+)$/gm, '<h3 class="text-xl font-bold mt-4 mb-2">$1</h3>');
+  // Handle code blocks replacement
+  let finalContent = renderedContent;
+  
+  codeBlocks.forEach((block, index) => {
+    const placeholder = `<CodeBlockPlaceholder id="${index}" language="${block.language}" ${block.filename ? `filename="${block.filename}"` : ''} ${block.showLineNumbers ? 'showLineNumbers' : ''} />`;
     
-    // Lists
-    formatted = formatted.replace(/^\- (.+)$/gm, '<li class="ml-4">$1</li>');
-    formatted = formatted.replace(/(<li.*<\/li>\n)+/g, '<ul class="list-disc mb-4">$&</ul>');
+    let replacement;
+    if (block.language === 'multi' && block.filename) {
+      // Parse tabs from filename (expected format: "tab1,tab2,tab3")
+      const tabLabels = block.filename.split(',').map(t => t.trim());
+      const tabCodes = block.code.split('---tab---');
+      
+      // Create tab data (ensuring we have enough tab data)
+      const tabs = tabLabels.map((label, i) => ({
+        label,
+        language: label.includes('.') ? label.split('.').pop() || 'plaintext' : 'plaintext',
+        code: i < tabCodes.length ? tabCodes[i] : '',
+        filename: label
+      }));
+      
+      replacement = (
+        <MultiTabCodeBlock 
+          key={index}
+          tabs={tabs}
+          showLineNumbers={!!block.showLineNumbers}
+        />
+      );
+    } else {
+      replacement = (
+        <CodeBlock 
+          key={index}
+          code={block.code} 
+          language={block.language} 
+          filename={block.filename}
+          showLineNumbers={!!block.showLineNumbers}
+        />
+      );
+    }
     
-    // Code blocks
-    formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)\n```/g, (match, lang, code) => {
-      return `<pre class="bg-muted p-4 rounded-md overflow-auto my-4"><code class="text-sm font-mono">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`;
-    });
+    finalContent = finalContent.replace(placeholder, '');
     
-    // Inline code
-    formatted = formatted.replace(/`([^`]+)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-sm font-mono">$1</code>');
-    
-    // Bold
-    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    
-    // Italic
-    formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    
-    // Links
-    formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline">$1</a>');
-    
-    // Paragraphs - must be last
-    formatted = formatted.replace(/^([^<].*[^>])$/gm, '<p class="mb-4">$1</p>');
-    
-    // React components (simplified handling)
-    formatted = formatted.replace(/<([A-Z][a-zA-Z]*)(.*?)>(.*?)<\/\1>/gs, (match) => {
-      return `<div class="border border-primary/20 rounded p-4 my-4 bg-primary/5">
-        <div class="text-xs text-muted-foreground mb-2">React Component:</div>
-        <div class="font-mono">${match.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-      </div>`;
-    });
-    
-    return formatted;
-  };
-
-  try {
-    const formattedContent = formatMarkdown(content);
-    
-    return (
-      <div className="prose prose-stone dark:prose-invert max-w-none">
-        <div dangerouslySetInnerHTML={{ __html: formattedContent }} />
-      </div>
-    );
-  } catch (error) {
-    console.error('Error rendering MDX:', error);
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          Error rendering MDX content. Check for syntax errors.
-        </AlertDescription>
-      </Alert>
-    );
+    if (index === 0) {
+      finalContent = (
+        <>
+          <div dangerouslySetInnerHTML={{ __html: finalContent.split(placeholder)[0] }} />
+          {replacement}
+          <div dangerouslySetInnerHTML={{ __html: finalContent.split(placeholder)[1] || '' }} />
+        </>
+      );
+    }
+  });
+  
+  if (typeof finalContent === 'string') {
+    return <div dangerouslySetInnerHTML={{ __html: finalContent }} />;
   }
+  
+  return finalContent;
 };
 
 export default MDXPreview;

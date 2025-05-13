@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 // Blog
 import BlogPage from "./pages/blog/BlogPage";
 import BlogPostPage from "./pages/blog/BlogPostPage";
+import BlogEditorPage from "./pages/blog/BlogEditorPage";
 
 // Templates
 import TemplatesPage from "./pages/templates/TemplatesPage";
@@ -34,6 +35,8 @@ import TypingSpeedPage from "./pages/tools/TypingSpeedPage";
 import CalculatorPage from "./pages/tools/CalculatorPage";
 import WeatherPage from "./pages/tools/WeatherPage";
 import TextToSpeechPage from "./pages/tools/TextToSpeechPage";
+import VideoDownloaderPage from "./pages/tools/VideoDownloaderPage";
+import CSSGeneratorsPage from "./pages/tools/CSSGeneratorsPage";
 
 // Auth
 import LoginPage from "./modules/auth/LoginPage";
@@ -84,6 +87,8 @@ const App = () => (
                   <Route path="blog" element={<BlogPage />} />
                   <Route path="blog/:slug" element={<BlogPostPage />} />
                   <Route path="blog/category/:categorySlug" element={<BlogPage />} />
+                  <Route path="blog/editor/:slug?" element={<BlogEditorPage />} />
+                  <Route path="blog/new" element={<BlogEditorPage />} />
                   
                   {/* Templates Routes */}
                   <Route path="templates" element={<TemplatesPage />} />
@@ -98,6 +103,8 @@ const App = () => (
                   <Route path="tools/calculator" element={<CalculatorPage />} />
                   <Route path="tools/weather" element={<WeatherPage />} />
                   <Route path="tools/text-to-speech" element={<TextToSpeechPage />} />
+                  <Route path="tools/video-downloader" element={<VideoDownloaderPage />} />
+                  <Route path="tools/css-generators" element={<CSSGeneratorsPage />} />
                 </Route>
                 
                 {/* Auth Routes */}
