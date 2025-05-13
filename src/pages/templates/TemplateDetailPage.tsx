@@ -14,11 +14,12 @@ import {
   ExternalLink,
   LayoutTemplate,
   Palette,
-  Code
+  Code,
+  ChevronRight
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -146,7 +147,7 @@ const TemplateDetailPage = () => {
   const handleDownload = async () => {
     if (!template) return;
     
-    if (template.is_premium && (!user || user.role !== 'premium')) {
+    if (template.is_premium && (!user || user.role !== "admin")) {
       toast({
         title: "Premium Template",
         description: "Anda perlu berlangganan untuk mengunduh template premium ini.",
