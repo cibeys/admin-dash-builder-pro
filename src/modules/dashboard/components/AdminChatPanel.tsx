@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,7 @@ interface Conversation {
   last_message: string;
   created_at: string;
   updated_at: string;
+  is_read: boolean;
   user_name?: string;
   unread_count?: number;
 }
@@ -37,13 +39,6 @@ interface Message {
 }
 
 interface User {
-  id: string;
-  full_name: string;
-  avatar_url: string | null;
-}
-
-// Define a type for the profiles returned from Supabase query
-interface ProfileData {
   id: string;
   full_name: string;
   avatar_url: string | null;
@@ -72,6 +67,7 @@ export const AdminChatPanel: React.FC = () => {
   useEffect(() => {
     if (activeConversation) {
       fetchMessages(activeConversation);
+      markConversationAsRead(activeConversation);
     }
   }, [activeConversation]);
 
@@ -82,24 +78,26 @@ export const AdminChatPanel: React.FC = () => {
   const fetchConversations = async () => {
     setIsLoading(true);
     try {
-      // First, fetch conversations without joins to avoid deep type instantiation
+      // First, fetch conversations
       let query = supabase
         .from('ai_chat_conversations')
         .select('*')
         .order('updated_at', { ascending: false });
 
       if (searchQuery) {
-        query = query.textSearch('last_message', searchQuery);
+        query = query.ilike('last_message', `%${searchQuery}%`);
       }
 
-      // Since the is_read column doesn't exist, we'll skip the unread filter for now
-      // We'll implement it properly once the database schema is updated
+      // Handle unread filter
+      if (activeTab === 'unread') {
+        query = query.eq('is_read', false);
+      }
 
       const { data: conversationsData, error: conversationsError } = await query;
 
       if (conversationsError) throw conversationsError;
 
-      if (!conversationsData) {
+      if (!conversationsData || conversationsData.length === 0) {
         setConversations([]);
         setIsLoading(false);
         return;
@@ -116,38 +114,30 @@ export const AdminChatPanel: React.FC = () => {
       if (profilesError) throw profilesError;
 
       // Map user profiles for easier lookup
-      const userProfiles: Record<string, ProfileData> = {};
+      const userProfiles: Record<string, User> = {};
       if (profilesData) {
         profilesData.forEach(profile => {
-          userProfiles[profile.id] = profile;
+          userProfiles[profile.id] = {
+            id: profile.id,
+            full_name: profile.full_name || 'Unknown User',
+            avatar_url: profile.avatar_url
+          };
         });
       }
 
-      // Create a new users object
-      const newUsers: Record<string, User> = {};
-      
       // Process conversations and add user data
       const processedConversations = conversationsData.map(conv => {
         const profile = userProfiles[conv.user_id];
         
-        if (profile) {
-          newUsers[profile.id] = {
-            id: profile.id,
-            full_name: profile.full_name,
-            avatar_url: profile.avatar_url
-          };
-        }
-        
         return {
           ...conv,
           user_name: profile ? profile.full_name : 'Unknown User',
-          // Placeholder for unread count since we don't have that column yet
-          unread_count: Math.floor(Math.random() * 5)
+          unread_count: conv.is_read ? 0 : 1
         };
       });
 
       // Update users state
-      setUsers(newUsers);
+      setUsers(userProfiles);
       setConversations(processedConversations);
       
       // If no active conversation, select the first one
@@ -191,6 +181,28 @@ export const AdminChatPanel: React.FC = () => {
         title: "Error",
         description: "Gagal memuat riwayat chat"
       });
+    }
+  };
+
+  const markConversationAsRead = async (conversationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('ai_chat_conversations')
+        .update({ is_read: true })
+        .eq('id', conversationId);
+
+      if (error) throw error;
+
+      // Update the local state
+      setConversations(prevConversations => 
+        prevConversations.map(conv => 
+          conv.id === conversationId 
+            ? { ...conv, is_read: true, unread_count: 0 } 
+            : conv
+        )
+      );
+    } catch (error) {
+      console.error('Error marking conversation as read:', error);
     }
   };
 
@@ -328,7 +340,9 @@ export const AdminChatPanel: React.FC = () => {
                     className={`flex items-start space-x-3 p-3 rounded-md text-left transition-colors ${
                       activeConversation === conversation.id
                         ? 'bg-accent'
-                        : 'hover:bg-muted'
+                        : conversation.is_read
+                          ? 'hover:bg-muted'
+                          : 'bg-primary/5 hover:bg-primary/10'
                     }`}
                     onClick={() => setActiveConversation(conversation.id)}
                   >
@@ -344,7 +358,7 @@ export const AdminChatPanel: React.FC = () => {
                     
                     <div className="flex-1 overflow-hidden">
                       <div className="flex justify-between items-center">
-                        <p className="font-medium truncate">
+                        <p className={`font-medium truncate ${!conversation.is_read ? 'font-bold' : ''}`}>
                           {conversation.user_name || 'Pengguna'}
                         </p>
                         <span className="text-xs text-muted-foreground">
@@ -352,7 +366,7 @@ export const AdminChatPanel: React.FC = () => {
                         </span>
                       </div>
                       
-                      <p className="text-sm truncate text-muted-foreground">
+                      <p className={`text-sm truncate ${!conversation.is_read ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                         {conversation.last_message || 'Tidak ada pesan'}
                       </p>
                       
@@ -361,11 +375,11 @@ export const AdminChatPanel: React.FC = () => {
                           {new Date(conversation.created_at).toLocaleDateString('id-ID')}
                         </span>
                         
-                        {conversation.unread_count ? (
-                          <Badge variant="secondary" className="text-xs">
-                            {conversation.unread_count}
+                        {!conversation.is_read && (
+                          <Badge variant="default" className="text-xs">
+                            Baru
                           </Badge>
-                        ) : null}
+                        )}
                       </div>
                     </div>
                   </button>

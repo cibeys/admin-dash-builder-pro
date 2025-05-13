@@ -1,10 +1,15 @@
 
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Search, Filter, Calendar, Clock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 // Import local images for blog posts
 import blogTechImage from '/images/blog/blog-tech.jpg';
@@ -37,77 +42,79 @@ const localImages = {
 };
 
 const BlogPage = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { categorySlug } = useParams<{ categorySlug?: string }>();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(categorySlug || null);
 
+  // Update selected category when URL param changes
   useEffect(() => {
-    const fetchPosts = async () => {
+    setSelectedCategory(categorySlug || null);
+  }, [categorySlug]);
+
+  // Fetch posts from Supabase
+  const { data: postsData, isLoading } = useQuery({
+    queryKey: ['blog-posts', selectedCategory, searchQuery],
+    queryFn: async () => {
       try {
-        setLoading(true);
-        
-        // Fetch categories
+        // Fetch categories first
         const { data: categoriesData } = await supabase
           .from('categories')
           .select('*');
-        
-        if (categoriesData) {
-          setCategories(categoriesData);
-        }
         
         // Fetch posts with author and category info
         let query = supabase
           .from('posts')
           .select(`
             id, title, slug, excerpt, featured_image, status, published_at,
-            profiles:author_id(username, avatar_url),
+            profiles:author_id(username, avatar_url, full_name),
             categories:category_id(name, slug)
           `)
           .eq('status', 'published');
         
         if (selectedCategory) {
-          // Join with categories and filter by category slug
+          // Get posts for the selected category
           query = query.eq('categories.slug', selectedCategory);
         }
         
-        const { data } = await query;
-        
-        if (data) {
-          // Format data to match our Post type
-          const formattedPosts = data.map(post => ({
-            id: post.id,
-            title: post.title,
-            slug: post.slug,
-            excerpt: post.excerpt || 'No excerpt available',
-            featured_image: post.featured_image || '/placeholder.svg',
-            status: post.status,
-            published_at: post.published_at,
-            author: {
-              username: post.profiles?.username || 'Unknown Author',
-              avatar_url: post.profiles?.avatar_url || null
-            },
-            category: {
-              name: post.categories?.name || 'Uncategorized',
-              slug: post.categories?.slug || 'uncategorized'
-            }
-          }));
-          
-          setPosts(formattedPosts);
+        if (searchQuery) {
+          query = query.ilike('title', `%${searchQuery}%`);
         }
+        
+        const { data: postsResult, error } = await query;
+        
+        if (error) throw error;
+        
+        return { 
+          posts: postsResult || [], 
+          categories: categoriesData || []
+        };
       } catch (error) {
-        console.error('Error fetching blog posts:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching blog data:', error);
+        return { posts: [], categories: [] };
       }
-    };
+    }
+  });
 
-    fetchPosts();
-  }, [selectedCategory]);
-
-  const handleCategoryChange = (slug: string | null) => {
-    setSelectedCategory(slug);
-  };
+  // Format posts to match our Post type
+  const posts: Post[] = postsData?.posts.map(post => ({
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    excerpt: post.excerpt || 'No excerpt available',
+    featured_image: post.featured_image || '/placeholder.svg',
+    status: post.status,
+    published_at: post.published_at,
+    author: {
+      username: post.profiles?.username || post.profiles?.full_name || 'Unknown Author',
+      avatar_url: post.profiles?.avatar_url || null
+    },
+    category: {
+      name: post.categories?.name || 'Uncategorized',
+      slug: post.categories?.slug || 'uncategorized'
+    }
+  })) || [];
+  
+  const categories = postsData?.categories || [];
 
   // Get appropriate image for post
   const getPostImage = (post: Post) => {
@@ -117,6 +124,11 @@ const BlogPage = () => {
       const imageName = post.featured_image.split('/').pop()?.split('.')[0];
       if (imageName && imageName in localImages) {
         return localImages[imageName as keyof typeof localImages];
+      }
+      
+      // If the image starts with '/images/' it's from public folder
+      if (post.featured_image.startsWith('/images/')) {
+        return post.featured_image;
       }
     }
     
@@ -173,6 +185,13 @@ const BlogPage = () => {
   ];
 
   const displayPosts = posts.length > 0 ? posts : placeholderPosts;
+  
+  // Calculate reading time
+  const calculateReadingTime = (excerpt: string) => {
+    const wordsPerMinute = 200;
+    const words = excerpt.split(/\s+/).length;
+    return Math.max(1, Math.ceil(words / wordsPerMinute));
+  };
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -183,43 +202,56 @@ const BlogPage = () => {
         </p>
       </div>
       
-      {/* Categories filter */}
-      <div className="flex flex-wrap gap-2 my-8">
-        <Badge 
-          variant={selectedCategory === null ? "default" : "outline"}
-          className="cursor-pointer"
-          onClick={() => handleCategoryChange(null)}
-        >
-          Semua
-        </Badge>
-        {categories.length > 0 ? (
-          categories.map((category) => (
-            <Badge 
-              key={category.id}
-              variant={selectedCategory === category.slug ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => handleCategoryChange(category.slug)}
-            >
-              {category.name}
-            </Badge>
-          ))
-        ) : (
-          // Placeholder categories when no data
-          ['Web Development', 'JavaScript', 'React', 'UI/UX Design'].map((cat) => (
-            <Badge
-              key={cat}
-              variant={selectedCategory === cat.toLowerCase().replace(' ', '-') ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => handleCategoryChange(cat.toLowerCase().replace(' ', '-'))}
-            >
-              {cat}
-            </Badge>
-          ))
-        )}
+      {/* Search and filter area */}
+      <div className="my-8 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Cari artikel..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        {/* Categories filter */}
+        <div className="flex flex-wrap gap-2">
+          <Badge 
+            variant={selectedCategory === null ? "default" : "outline"}
+            className="cursor-pointer"
+            onClick={() => setSelectedCategory(null)}
+          >
+            Semua
+          </Badge>
+          {categories.length > 0 ? (
+            categories.map((category) => (
+              <Badge 
+                key={category.id}
+                variant={selectedCategory === category.slug ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setSelectedCategory(category.slug)}
+              >
+                {category.name}
+              </Badge>
+            ))
+          ) : (
+            // Placeholder categories when no data
+            ['Web Development', 'JavaScript', 'React', 'UI/UX Design'].map((cat) => (
+              <Badge
+                key={cat}
+                variant={selectedCategory === cat.toLowerCase().replace(' ', '-') ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setSelectedCategory(cat.toLowerCase().replace(' ', '-'))}
+              >
+                {cat}
+              </Badge>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Posts grid */}
-      {loading ? (
+      {isLoading ? (
         // Loading skeleton
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
@@ -242,7 +274,7 @@ const BlogPage = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayPosts.map((post) => (
-            <Card key={post.id} className="overflow-hidden">
+            <Card key={post.id} className="overflow-hidden flex flex-col">
               <div className="h-48 overflow-hidden">
                 <img 
                   src={getPostImage(post)}
@@ -250,42 +282,58 @@ const BlogPage = () => {
                   className="w-full h-full object-cover transition-transform hover:scale-105"
                 />
               </div>
-              <CardContent className="pt-6">
-                <div className="mb-2">
-                  <Badge variant="outline">
+              <CardContent className="pt-6 flex-grow">
+                <div className="flex justify-between items-center mb-2">
+                  <Badge variant="outline" className="bg-primary/5">
                     {post.category.name}
                   </Badge>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3 mr-1" />
+                    <span>{calculateReadingTime(post.excerpt)} min read</span>
+                  </div>
                 </div>
                 <Link to={`/blog/${post.slug}`} className="hover:text-primary">
-                  <h2 className="text-xl font-bold mb-2">{post.title}</h2>
+                  <h2 className="text-xl font-bold mb-2 line-clamp-2">{post.title}</h2>
                 </Link>
                 <p className="text-muted-foreground mb-4 line-clamp-3">
                   {post.excerpt}
                 </p>
               </CardContent>
-              <CardFooter className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center mr-2">
-                    {post.author.avatar_url ? (
-                      <img 
-                        src={post.author.avatar_url} 
-                        alt={post.author.username} 
-                        className="w-full h-full rounded-full" 
-                      />
-                    ) : (
-                      <span className="text-sm font-semibold">
-                        {post.author.username.charAt(0).toUpperCase()}
-                      </span>
-                    )}
+              <CardFooter className="border-t pt-4">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center">
+                    <Avatar className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center mr-2">
+                      {post.author.avatar_url ? (
+                        <AvatarImage 
+                          src={post.author.avatar_url} 
+                          alt={post.author.username} 
+                          className="w-full h-full rounded-full" 
+                        />
+                      ) : (
+                        <AvatarFallback>
+                          {post.author.username.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <span className="text-sm">{post.author.username}</span>
                   </div>
-                  <span className="text-sm">{post.author.username}</span>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {new Date(post.published_at).toLocaleDateString()}
+                  </div>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(post.published_at).toLocaleDateString()}
-                </span>
               </CardFooter>
             </Card>
           ))}
+        </div>
+      )}
+      
+      {/* Pagination or Load more */}
+      {displayPosts.length > 0 && (
+        <div className="flex justify-center mt-10">
+          <Button variant="outline">
+            Muat Lebih Banyak
+          </Button>
         </div>
       )}
     </div>
