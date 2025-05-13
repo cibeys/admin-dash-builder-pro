@@ -31,6 +31,9 @@ import ToolsPage from "./pages/tools/ToolsPage";
 import AIChatPage from "./pages/tools/AIChatPage";
 import ImageOptimizerPage from "./pages/tools/ImageOptimizerPage";
 import TypingSpeedPage from "./pages/tools/TypingSpeedPage";
+import CalculatorPage from "./pages/tools/CalculatorPage";
+import WeatherPage from "./pages/tools/WeatherPage";
+import TextToSpeechPage from "./pages/tools/TextToSpeechPage";
 
 // Auth
 import LoginPage from "./modules/auth/LoginPage";
@@ -92,6 +95,9 @@ const App = () => (
                   <Route path="tools/ai-chat" element={<AIChatPage />} />
                   <Route path="tools/image-optimizer" element={<ImageOptimizerPage />} />
                   <Route path="tools/typing-speed" element={<TypingSpeedPage />} />
+                  <Route path="tools/calculator" element={<CalculatorPage />} />
+                  <Route path="tools/weather" element={<WeatherPage />} />
+                  <Route path="tools/text-to-speech" element={<TextToSpeechPage />} />
                 </Route>
                 
                 {/* Auth Routes */}
